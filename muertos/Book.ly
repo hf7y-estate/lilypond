@@ -17,3 +17,8 @@ mellophoneFingering = ##t
 \santa_sangre-card
 \vis_hora-card
 \zeina-card
+\get_my_sound-card
+\le_chant_des_partisans-card
+\rin_de_angelito-card
+\tabu-card
+\voodoo-card

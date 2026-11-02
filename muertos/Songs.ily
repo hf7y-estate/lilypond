@@ -19,6 +19,11 @@
 \include "ana_dammi_falastini.ly"
 \include "love_in_outer_space.ly"
 \include "zeina.ly"
+\include "get_my_sound.ly"
+\include "le_chant_des_partisans.ly"
+\include "rin_de_angelito.ly"
+\include "tabu.ly"
+\include "voodoo.ly"
 
 ana_dammi_falastini-card = \bookpart {
 	\ana_dammi_falastini-header
@@ -79,4 +84,34 @@ zeina-card = \bookpart {
 	\zeina-header
 	\transpose f c'
 	\zeina-accompaniment
+}
+
+get_my_sound-card = \bookpart {
+	\get_my_sound-header
+	\transpose f c'
+	\get_my_sound-accompaniment
+}
+
+le_chant_des_partisans-card = \bookpart {
+	\le_chant_des_partisans-header
+	\transpose f c'
+	\le_chant_des_partisans-accompaniment
+}
+
+rin_de_angelito-card = \bookpart {
+	\rin_de_angelito-header
+	\transpose f c'
+	\rin_de_angelito-accompaniment
+}
+
+tabu-card = \bookpart {
+	\tabu-header
+	\transpose f c'
+	\tabu-accompaniment
+}
+
+voodoo-card = \bookpart {
+	\voodoo-header
+	\transpose f c'
+	\voodoo-accompaniment
 }

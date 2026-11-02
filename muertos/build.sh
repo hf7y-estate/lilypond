@@ -4,6 +4,8 @@
 #   mellophone-letter.pdf  the same cards 2-up on landscape letter, cut line
 #   <song>.pdf             one cards PDF per song
 #   songs.tsv              <song>.pdf <TAB> title, in book order
+#   mellophone-range.txt   written range per song, notes outside F#3-C6
+#                          (mellophone.ily writes it)
 # Fails on any LilyPond error, or on a page that is not 5.5x8.5in.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
@@ -34,11 +36,12 @@ card_size() {  # every page of $1 must be 396x612pt (5.5x8.5in)
 
 ly mellophone-cards "$here/Book.ly"
 card_size "$out/mellophone-cards.pdf"
+mv "$work/mellophone-cards-range.txt" "$out/mellophone-range.txt"
 
 : >"$out/songs.tsv"
 for song in $(sed -n 's/^\\\([A-Za-z_]*\)-card$/\1/p' "$here/Book.ly"); do
   name=${song//_/-}
-  printf '\\version "2.24.1"\n\\include "Songs.ily"\n\\%s-card\n' "$song" >"$work/$name.ly"
+  { sed '/^\\[A-Za-z_]*-card$/d' "$here/Book.ly"; printf '\\%s-card\n' "$song"; } >"$work/$name.ly"
   ly "$name" "$work/$name.ly"
   card_size "$out/$name.pdf"
   title=$(sed -n 's/^[[:space:]]*piece *= *"\(.*\)"[[:space:]]*$/\1/p' "$here/$song.ly" | head -1)

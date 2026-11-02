@@ -892,7 +892,12 @@ def emit(measures, report, clef_override=None):
             if close:
                 out.pop()
             line.append(f"\\set Score.repeatCommands = #'({close}(volta \"{esc(m.volta_start)}\"))")
-        line += m.marks
+        # two marks at one moment (a box and a segno): LilyPond keeps only
+        # one \\mark, so they go in one markup
+        mk = [t[len("\\mark \\markup "):] for t in m.marks if t.startswith("\\mark \\markup ")]
+        rest = [t for t in m.marks if not t.startswith("\\mark \\markup ")]
+        line += (["\\mark \\markup { " + " ".join(mk) + " }"] if len(mk) > 1 else
+                 ["\\mark \\markup " + t for t in mk]) + rest
         meas_len = F(time[0], time[1])
         total = F(0)
         evs = m.events

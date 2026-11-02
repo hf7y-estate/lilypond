@@ -21,22 +21,22 @@ harmonies = \chordmode {
 
 accompaniment = {
 	\repeat unfold 2 { 
-		<g bes d'>2. | 8 8 r2 |
+		<g bes d'>2 r4 | q8 q r2 |
 	}
 	\repeat unfold 2 { 
-		<fis a d'>2. | 8 8 r2 |
+		<fis a d'>2 r4 | q8 q r2 |
 	}
 	\repeat unfold 2 { 
-		<f! aes! c'>2. | 8 8 r2 |
+		<f! aes! c'>2 r4 | q8 q r2 |
 	}
 	\repeat unfold 2 { 
-		<es g c'>2. | 8 8 r2 |
+		<es g c'>2 r4 | q8 q r2 |
 	}
 	\repeat unfold 2 { 
-		<e a bes>2. | 8 8 r2 |
+		<e aes bes>2 r4 | q8 q r2 |
 	}
 	\repeat unfold 2 { 
-		<es g c'>2. | 8 8 r2 |
+		<es g c'>2 r4 | q8 q r2 |
 	}
 }
 

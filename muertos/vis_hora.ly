@@ -38,17 +38,6 @@ accompaniment = {
 	s2._\markup { \italic "accomp. simile" }
 }
 
-harmonies = \chordmode {
-	\partial 4 s4
-	f2.:m s2.*3 | s2.*4 |
-	c2.:7 s2.*3 | bes2.:m s2.*3 |
-	bes2.:m s2.*3 | f2.:m s2.*3 |
-
-	f2.:7 s2.*3 | s2.*4 |
-	bes2.:m s2.*3 | c2.:7 s2.*3 |
-	c2.:7 s2.*3 | f2.:m s2.*2 s2
-}
-
 form = \transpose c c' {
 	\key f \minor
 	\time 3/4
@@ -73,9 +62,6 @@ vis_hora-header = \header {
 
 vis_hora-accompaniment =
 <<
-	\new ChordNames {
-		\harmonies
-	}
 	\new Staff {
 		<< 
 			<< 

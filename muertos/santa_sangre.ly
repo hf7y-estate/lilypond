@@ -33,20 +33,6 @@ accompaniment = \transpose c f {
 	}
 }
 
-harmonies = \chordmode {
-	\partial 2.
-	s2. 
-	bes2 s2 | s1 |
-	f2:7 s2 | s1 |
-	f2:7 s2 | s1 |
-	bes2 s2 | s1 |
-
-	bes2 s2 | s1 |
-	c2:m s2 | s1 |
-	bes2 s2 | f2:7 s2 |
-	bes2 s2 | s4
-}
-
 form = {
 	\time 4/4
 	\key bes \major
@@ -65,9 +51,6 @@ santa_sangre-header = \header {
 
 santa_sangre-accompaniment = {
 	<<
-		\new ChordNames {
-			\harmonies
-		}
 		\new Staff {
 			<<
 				\magnifyMusic 0.63 { \form } \\

@@ -74,19 +74,6 @@ b-melody = {
 	}
 }
 
-harmonies = \chordmode {
-	s2.*5 | s2.*5 | s2.*2 |
-	c2.:m | s2.*3 |
-
-	% a-melody
-	c2.:m | s2. | f2.:m | s2. |
-	c2.:m | s2. | g2.:7 | s2. | s2. |
-
-	% b-melody
-	c2.:m | s2. | bes2. | s2. |
-	aes2. | s2. | g2.:7 | s2. | s2. |
-}
-
 form = {
 	\time 3/4 
 	\key c \minor
@@ -120,9 +107,6 @@ la_llorona-header = \header {
 
 la_llorona-accompaniment =
 <<
-	\new ChordNames {
-		\harmonies
-	}
 	\new Staff {
 		<< 
 			<< 

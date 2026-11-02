@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # muertos/index.sh OUTDIR SHA DATE -- print ddlm/index.html for a build.sh
 # OUTDIR: the full book (cards and letter) at the top, then each song's card.
+# A with-chords book (mellophone-chords-*.pdf) and a song's third songs.tsv
+# column (its -chords.pdf, or -) add "with chords" links (#6).
 set -euo pipefail
 out=${1:?usage: index.sh OUTDIR SHA DATE} sha=${2:?} date=${3:?}
 esc() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g'; }
@@ -20,6 +22,7 @@ a { display: block; padding: .4em 0; }
 li { list-style: none; border-bottom: 1px solid #ddd; }
 ul { padding: 0; }
 small { color: #666; }
+a.with { display: inline; font-size: .85em; padding: 0 0 .4em; }
 </style>
 </head>
 <body>
@@ -28,14 +31,27 @@ small { color: #666; }
 <ul>
 <li><a href="mellophone-cards.pdf">Cards, 5.5×8.5in</a></li>
 <li><a href="mellophone-letter.pdf">Letter, two cards per sheet (cut down the middle)</a></li>
+HTML
+for f in mellophone-chords-cards.pdf mellophone-chords-letter.pdf; do
+  [ -f "$out/$f" ] || continue
+  case $f in *cards*) what="Cards with chord symbols, 5.5×8.5in" ;;
+             *) what="Letter with chord symbols, two cards per sheet" ;; esac
+  printf '<li><a href="%s">%s</a></li>\n' "$f" "$what"
+done
+cat <<HTML
 <li><a href="mellophone-range.txt">Range check, written F#3–C6 (text)</a></li>
 </ul>
 <h2>Songs</h2>
 <ul>
 HTML
-while IFS=$'\t' read -r pdf title; do
+while IFS=$'\t' read -r pdf title chords; do
   [ -f "$out/$pdf" ] || { echo "index.sh: songs.tsv names missing $pdf" >&2; exit 1; }
-  printf '<li><a href="%s">%s</a></li>\n' "$(printf %s "$pdf" | esc)" "$(printf %s "$title" | esc)"
+  with=
+  if [ -n "$chords" ] && [ "$chords" != - ]; then
+    [ -f "$out/$chords" ] || { echo "index.sh: songs.tsv names missing $chords" >&2; exit 1; }
+    with=$(printf ' <a class="with" href="%s">with chords</a>' "$(printf %s "$chords" | esc)")
+  fi
+  printf '<li><a href="%s">%s</a>%s</li>\n' "$(printf %s "$pdf" | esc)" "$(printf %s "$title" | esc)" "$with"
 done <"$out/songs.tsv"
 cat <<HTML
 </ul>

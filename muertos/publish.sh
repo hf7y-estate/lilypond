@@ -7,7 +7,8 @@
 # changes under muertos/, so the page's source sha is what was built.
 # Refuses first unless recheck.sh is green: no card goes live that no
 # longer matches its source PDF, and a re-check that cannot run (BLIND:
-# no sources on this host, no LilyPond) is a refusal too (#7).
+# no sources on this host, no LilyPond) is a refusal too (#7). Same for
+# chords.sh: no chord symbols go live that the PDFs no longer print (#6).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 site=${DDLM_SITE:-https://github.com/hf7y/hf7y.github.io.git}
@@ -16,6 +17,7 @@ tries=${DDLM_TRIES:-20}   # x30s waiting for Pages
 die() { echo "publish.sh: $*" >&2; exit 1; }
 
 "$here/recheck.sh" || die "recheck.sh is not green (above); not publishing"
+"$here/chords.sh" || die "chords.sh is not green (above); not publishing"
 if [ -n "$(git -C "$here" status --porcelain -- .)" ]; then
   die "uncommitted changes under muertos/; commit them first"
 fi

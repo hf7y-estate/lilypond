@@ -5,6 +5,8 @@
 
 % ##f: no valve fingerings (the range check and report stay on).
 mellophoneFingering = ##t
+% ##t: chord symbols above the songs that have them (build.sh builds both).
+ddlmChords = ##f
 \include "mellophone.ily"
 \include "Songs.ily"
 

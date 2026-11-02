@@ -1,0 +1,16 @@
+# muertos/chords.sh reads this: which 2026 source PDF each card's chord
+# symbols come from (#6), written to chords/<song>.ily. Tab-separated:
+#   song  PDF (under DDLM_SOURCES)  staff the card voice was read from  card voice
+# The chords may sit above another staff of that PDF (la_llorona: staff 4,
+# get_my_sound: 3, rin_de_angelito: 4); pdfchords.py finds them. Songs not
+# listed have no chord symbols in their 2026 source (ana_dammi_falastini,
+# cairn_builder, the_fool, zeina, le_chant_des_partisans, tabu: only
+# rehearsal letters); the_fool keeps its hand-entered harmonies.
+gnossienne	Gnossienne No 1/Gnossienne No. 1-C_Instruments.pdf	1	1
+la_llorona	La Llorona/La Llorona F.pdf	1	1
+love_in_outer_space	Love In Outer Space/Love in Outer Space (F).pdf	1	1
+santa_sangre	Santa Sangre/Santa Sangre-C_Instruments.pdf	1	1
+vis_hora	Vi_s Hora/Vi_s Hora-C_Instruments.pdf	1	1
+get_my_sound	Get My Sound/Get_My_Sound.pdf	2	1
+rin_de_angelito	Rin de Angelito/Rin de Angelito Concert.pdf	3	1
+voodoo	_Voodoo/Voodoo mids F horn.pdf	1	1

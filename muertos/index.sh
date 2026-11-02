@@ -39,7 +39,7 @@ for f in mellophone-chords-cards.pdf mellophone-chords-letter.pdf; do
   printf '<li><a href="%s">%s</a></li>\n' "$f" "$what"
 done
 cat <<HTML
-<li><a href="mellophone-range.txt">Range check, written F#3–C6 (text)</a></li>
+<li><a href="mellophone-range.txt">Range check, written C4–C6 (text)</a></li>
 </ul>
 <h2>Songs</h2>
 <ul>

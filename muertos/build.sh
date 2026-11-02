@@ -9,7 +9,7 @@
 #                          whose card has \withChords in Songs.ily
 #   songs.tsv              <song>.pdf <TAB> title <TAB> <song>-chords.pdf or -,
 #                          in book order
-#   mellophone-range.txt   written range per song, notes outside F#3-C6
+#   mellophone-range.txt   written range per song, notes outside C4-C6
 #                          (mellophone.ily writes it)
 # Fails on any LilyPond error, or on a page that is not 5.5x8.5in.
 set -euo pipefail

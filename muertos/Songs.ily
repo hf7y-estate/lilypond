@@ -38,7 +38,8 @@
 % \withChords CHORDS MUSIC: MUSIC with CHORDS above it in a ChordNames
 % tagged #'chords. Book.ly's ddlmChords = ##t keeps them; ##f (or unset)
 % takes them out with \removeWithTag #'chords. Put it inside the card's
-% \transpose f c', so the chords are written in the part's key.
+% \mellophonePart (player.ily: \transpose f c' and the player profile), so
+% the chords are written in the part's key.
 % Music that makes no Staff of its own (pdf2ly's songs) gets one, or its
 % notes would land in the ChordNames.
 #(define (ddlm-has-staff? m)
@@ -56,14 +57,14 @@ withChords = #(define-music-function (chords music) (ly:music? ly:music?)
 
 ana_dammi_falastini-card = \bookpart {
 	\ana_dammi_falastini-header
-	\transpose f c'
+	\mellophonePart
 	\ana_dammi_falastini-accompaniment
 }
 
 cairn_builder-card = \bookpart {
 	\cairn_builder-header
 	\removeWithTag #'phone
-	\transpose f c'
+	\mellophonePart
 	\cairn_builder-accompaniment
 }
 
@@ -71,76 +72,76 @@ the_fool-card = \bookpart {
 	\the_fool-header
 	\markup { \bold "A" "and" \bold "B" "harmony rhythms with chords" }
 	\removeWithTag #'phone
-	\transpose f c'
+	\mellophonePart
 	\withChords \the_fool-chords \the_fool-accompaniment
 }
 
 gnossienne-card = \bookpart {
 	\gnossienne-header
 	\removeWithTag #'phone
-	\transpose f c'
+	\mellophonePart
 	\withChords \gnossienne-chords \gnossienne-accompaniment
 }
 
 la_llorona-card = \bookpart {
 	\la_llorona-header
 	\removeWithTag #'phone
-	\transpose f c'
+	\mellophonePart
 	\withChords \la_llorona-chords \la_llorona-accompaniment
 }
 
 love_in_outer_space-card = \bookpart {
 	\love_in_outer_space-header
-	\transpose f c'
+	\mellophonePart
 	\withChords \love_in_outer_space-chords \love_in_outer_space-accompaniment
 }
 
 santa_sangre-card = \bookpart {
 	\santa_sangre-header
 	\removeWithTag #'phone
-	\transpose f c'
+	\mellophonePart
 	\withChords \santa_sangre-chords \santa_sangre-accompaniment
 }
 
 vis_hora-card = \bookpart {
 	\vis_hora-header
 	\removeWithTag #'phone
-	\transpose f c'
+	\mellophonePart
 	\withChords \vis_hora-chords \vis_hora-accompaniment
 }
 
 zeina-card = \bookpart {
 	\zeina-header
-	\transpose f c'
+	\mellophonePart
 	\zeina-accompaniment
 }
 
 get_my_sound-card = \bookpart {
 	\get_my_sound-header
-	\transpose f c'
+	\mellophonePart
 	\withChords \get_my_sound-chords \get_my_sound-accompaniment
 }
 
 le_chant_des_partisans-card = \bookpart {
 	\le_chant_des_partisans-header
-	\transpose f c'
+	\mellophonePart
 	\le_chant_des_partisans-accompaniment
 }
 
 rin_de_angelito-card = \bookpart {
 	\rin_de_angelito-header
-	\transpose f c'
+	\mellophonePart
 	\withChords \rin_de_angelito-chords \rin_de_angelito-accompaniment
 }
 
 tabu-card = \bookpart {
 	\tabu-header
-	\transpose f c'
+	\mellophonePart
 	\tabu-accompaniment
 }
 
 voodoo-card = \bookpart {
 	\voodoo-header
-	\transpose f c'
+	\mellophonePart
 	\withChords \voodoo-chords \voodoo-accompaniment
 }

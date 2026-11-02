@@ -15,6 +15,17 @@ out=$(cd "$out" && pwd)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
+# Every measure of a song read from PDF adds up to its time signature (#4),
+# counted from the notes by tools/barsum.py. LilyPond's own bar check only
+# warns, and a warning does not stop this build or publish.sh. barsum.py
+# exits 2 (BLIND) on a song it cannot read, and that stops the build too.
+mapfile -t pdfread < <(grep -lF 'muertos/tools/pdf2ly.py' "$here"/*.ly)
+if [ "${#pdfread[@]}" -gt 0 ] && ! python3 -I "$here/tools/barsum.py" "${pdfread[@]}" >"$work/barsum" 2>&1; then
+  grep -v '^ok: ' "$work/barsum" >&2
+  echo "build.sh: a song read from PDF has a measure that does not add up, or cannot be read (above)" >&2
+  exit 1
+fi
+
 ly() {  # ly NAME FILE: compile FILE to $out/NAME.pdf, zero errors
   local log="$work/$1.log"
   if ! lilypond -I "$here" -o "$work/$1" "$2" >"$log" 2>&1 || grep -q 'error:' "$log"; then

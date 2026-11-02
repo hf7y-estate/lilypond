@@ -34,11 +34,19 @@
   (cons '("phone" . (cons (* 5.5 in) (* 2.5 in))) paper-alist))
 
 \paper {
+  % minimum-distance is the card's capacity (hf7y-estate/lilypond#8 item
+  % 6): systems are never packed closer than this, so a song with more
+  % systems than fit goes on to a second card (player.ily picks where).
+  % At 12, a card holds 12 systems (ana_dammi_falastini and the_fool have 11).
   system-system-spacing =
     #'((basic-distance . 6)
-       (minimum-distance . 0)
+       (minimum-distance . 12)
        (padding . 1)
        (stretchability . 12))
+  ragged-bottom = ##f
+  ragged-last-bottom = ##f
+  % the card's spare height goes between the systems, not under the last
+  last-bottom-spacing.stretchability = 0
   markup-system-spacing =
     #'((basic-distance . 10)
        (minimum-distance . 0)

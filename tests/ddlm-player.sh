@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# The player profile (muertos/player.ily, hf7y-estate/lilypond#8):
+# \mellophonePart's top-note reduction and whole-phrase range fit, the
+# fingering rules in muertos/mellophone.ily (top note only, spelled pitch,
+# "12" not "1-2") and the card layout, on small fixtures and on the book.
+# Reads the notes back with muertos/tools/ly-events.ily and the systems
+# and fingerings from the <output>-layout.txt player.ily writes.
+# Needs lilypond and gs. Without lilypond on PATH it says SKIP and checks
+# nothing: LilyPond 2.24 is on the dexter host, not in the agent image.
+set -uo pipefail
+root=$(git rev-parse --show-toplevel)
+m="$root/muertos"
+if ! command -v lilypond >/dev/null || ! command -v gs >/dev/null; then
+  echo "SKIP: no lilypond/gs on PATH; nothing checked"
+  exit 0
+fi
+t=$(mktemp -d); trap 'rm -rf "$t"' EXIT
+fail=0
+ok()  { echo "ok: $*"; }
+bad() { echo "FAIL: $*"; fail=1; }
+want() {  # want WHAT GOT EXPECTED
+  if [ "$2" = "$3" ]; then ok "$1: $2"; else bad "$1: got [$2], want [$3]"; fi
+}
+ly() {  # ly NAME: compile $t/NAME.ly; 1 if lilypond fails
+  lilypond -I "$m" -o "$t/$1" "$t/$1.ly" >"$t/$1.log" 2>&1 \
+    || { bad "lilypond failed on $1:"; tail -5 "$t/$1.log"; return 1; }
+}
+pages() { gs -q -dNODISPLAY -dNOSAFER -c "($1) (r) file runpdfbegin pdfpagecount = quit"; }
+
+# fixture NAME EXTRA MUSIC: MUSIC written at the mellophone's written pitch
+# (the \transpose c' f undoes \mellophonePart's \transpose f c'), its notes
+# to $t/NAME.tsv. EXTRA goes after the includes.
+fixture() {
+  cat >"$t/$1.ly" <<EOF
+\\version "2.24.1"
+\\include "mellophone.ily"
+#(define ly-events-file "$t/$1.tsv")
+\\include "tools/ly-events.ily"
+$2
+\\header { tagline = ##f }
+\\score { \\new Staff \\mellophonePart \\transpose c' f { \\time 4/4 $3 } }
+EOF
+  ly "$1"
+}
+notes() { awk -F'\t' '$4=="note"{printf "%s ", $5}' "$t/$1.tsv" | sed 's/ $//'; }
+
+# ---- range fit: whole phrases, at breaths
+# Phrase 1 spans C4-G5 and cannot move; phrase 2, after a rest, crosses
+# C6 in the middle (E6 D6 C6 | B5 A5): all of it goes down an octave,
+# B5 and A5 too, so no octave changes inside it.
+fixture phrase "" "c'4( e' g' c'' | g''1) | r1 | e'''4( d''' c''' b'' | a''1) |"
+want "a phrase crossing C6 moves whole" "$(notes phrase)" "60 64 67 72 79 76 74 72 71 69"
+grep -q 'mellophone:' "$t/phrase.log" && bad "range warning on a line the fit puts in range"
+
+# Two phrases, no rest between: C4 E4 G5 C6, then D6 E6. Either octave
+# move of the first puts two of its notes out, as many as it would bring
+# in, so it stays. Down an octave the second would join C6 -> D5, a
+# seventh: wider than a fifth, so it stays too, and is warned about.
+fixture fifth "" "c'4( e' g'' c''') | d'''2( e''') |"
+want "no join leap over a fifth" "$(notes fifth)" "60 64 79 84 86 88"
+want "out of range left as is is warned" "$(grep -c 'mellophone: .*outside C4-C6' "$t/fifth.log")" 2
+# Injected: the limit an octave -> the second phrase moves, leap and all.
+fixture fifth-inj "#(set! player-join-limit 12)" "c'4( e' g'' c''') | d'''2( e''') |"
+want "injected: join limit an octave lets it leap" "$(notes fifth-inj)" "60 64 79 84 74 76"
+
+# ---- top note, fingering
+# <c' e' g'> <d' f' a'> -> G4 A4; two voices E5/C5 then C#5/A4 -> only the
+# top voice is fingered; Db5 after C#5 is another pitch and is fingered.
+fixture top "" "<c' e' g'>2 <d' f' a'>2 | << { e''2 cis''2 } \\\\ { c''2 a'2 } >> | des''1 |"
+want "chords reduce to the top note" "$(notes top)" "67 69 76 72 73 69 73"
+want "one note per voice per moment" \
+  "$(awk -F'\t' '$4=="note"{print $1, $2, $7}' "$t/top.tsv" | sort | uniq -d | wc -l)" 0
+want "fingered: top notes, spelled pitch, no dashes" \
+  "$(awk -F'\t' '$1=="finger"{printf "%s=%s ", $4, $5}' "$t/top-layout.txt")" \
+  "G4=0 A4=12 E5=0 C#5=12 Db5=12 "
+
+# ---- the book
+{ cat "$m/Book.ly"; printf '#(define ly-events-file "%s")\n\\include "tools/ly-events.ily"\n' "$t/book.tsv"; } >"$t/book.ly"
+if ly book; then
+  L="$t/book-layout.txt"
+  want "one staff size on every card" "$(awk -F'\t' '$1=="system"{print $4}' "$L" | sort -u | tr '\n' ' ')" "14.0 "
+  rin=$(awk -F'\t' '$1=="system" && $2=="rin_de_angelito"{print $3}' "$L")
+  [ "${rin:-0}" -gt 1 ] && ok "rin_de_angelito has $rin systems" || bad "rin_de_angelito has [$rin] systems, want more than 1"
+  want "gnossienne: no note above C6" \
+    "$(awk -F'\t' '$1=="gnossienne"{print $4}' "$t/book-range.txt")" none
+  want "no fingering with a dash" "$(awk -F'\t' '$1=="finger" && $5 ~ /-/' "$L" | wc -l)" 0
+  want "zeina's Db5 (m29) carries a fingering" \
+    "$(awk -F'\t' '$1=="finger" && $2=="zeina" && $4=="Db5"{print $3, $5}' "$L")" "29 12"
+fi
+
+# One song's card, as build.sh builds it: Book.ly's preamble and the song.
+card() {  # card NAME SONG [LINES]: LINES go before Songs.ily's \include
+  { sed '/^\\[A-Za-z_]*-card$/d; /^\\include "Songs.ily"$/d' "$m/Book.ly"
+    printf '%s\n' "${3:-}" '\include "Songs.ily"' "\\$2-card"; } >"$t/$1.ly"
+  ly "$1"
+}
+card card-zeina zeina && want "zeina's card has 2 pages" "$(pages "$t/card-zeina.pdf")" 2
+card card-rin rin_de_angelito && want "rin_de_angelito's card has 1 page" "$(pages "$t/card-rin.pdf")" 1
+
+# love_in_outer_space: its accompaniment is triads; no chord is left.
+events="#(define ly-events-file \"$t/love.tsv\")
+\\include \"tools/ly-events.ily\""
+chords() { awk -F'\t' '$4=="note"{print $1, $2, $7}' "$t/love.tsv" | sort | uniq -d | wc -l; }
+card love love_in_outer_space "$events" && want "love_in_outer_space: no chord" "$(chords)" 0
+# Injected: the card through a plain \transpose f c' -> its triads come back.
+card love-inj love_in_outer_space "$events
+mellophonePart = #(define-music-function (m) (ly:music?) #{ \\transpose f c' \$m #})" \
+  && { n=$(chords); [ "$n" -gt 0 ] && ok "injected: without the reduction, love_in_outer_space has $n chords" \
+       || bad "injected: a plain \\transpose f c' left $n chords, want some"; }
+
+[ $fail = 0 ] && echo "ddlm-player: all ok"
+exit $fail

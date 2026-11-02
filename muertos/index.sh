@@ -4,7 +4,7 @@
 set -euo pipefail
 out=${1:?usage: index.sh OUTDIR SHA DATE} sha=${2:?} date=${3:?}
 esc() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g'; }
-for f in mellophone-cards.pdf mellophone-letter.pdf songs.tsv; do
+for f in mellophone-cards.pdf mellophone-letter.pdf mellophone-range.txt songs.tsv; do
   [ -f "$out/$f" ] || { echo "index.sh: no $out/$f" >&2; exit 1; }
 done
 cat <<HTML
@@ -28,6 +28,7 @@ small { color: #666; }
 <ul>
 <li><a href="mellophone-cards.pdf">Cards, 5.5×8.5in</a></li>
 <li><a href="mellophone-letter.pdf">Letter, two cards per sheet (cut down the middle)</a></li>
+<li><a href="mellophone-range.txt">Range check, written F#3–C6 (text)</a></li>
 </ul>
 <h2>Songs</h2>
 <ul>

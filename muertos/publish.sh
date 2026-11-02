@@ -23,7 +23,7 @@ trap 'rm -rf "$work"' EXIT
 git clone -q --depth 1 --branch master "$site" "$work/site"
 rm -rf "$work/site/ddlm"
 mkdir "$work/site/ddlm"
-cp "$work/out"/*.pdf "$work/site/ddlm/"
+cp "$work/out"/*.pdf "$work/out/mellophone-range.txt" "$work/site/ddlm/"
 "$here/index.sh" "$work/out" "$sha" "$(date -u '+%Y-%m-%d %H:%M UTC')" >"$work/site/ddlm/index.html"
 
 cd "$work/site"

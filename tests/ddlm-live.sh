@@ -12,11 +12,12 @@ red() { if "$@" >"$t/log" 2>&1; then echo "FAIL (want red): $*"; cat "$t/log"; f
 
 mkdir "$t/out" "$t/bin"
 for f in mellophone-cards mellophone-letter la-llorona vis-hora; do : >"$t/out/$f.pdf"; done
+: >"$t/out/mellophone-range.txt"
 printf 'la-llorona.pdf\tLa Llorona\nvis-hora.pdf\tVi'"'"'s Hora & <co>\n' >"$t/out/songs.tsv"
 
 ok "$root/muertos/index.sh" "$t/out" 0123456789abcdef "2026-11-02 00:00 UTC"
 "$root/muertos/index.sh" "$t/out" 0123456789abcdef "2026-11-02 00:00 UTC" >"$t/page.html"
-for want in 'href="mellophone-cards.pdf"' 'href="mellophone-letter.pdf"' \
+for want in 'href="mellophone-cards.pdf"' 'href="mellophone-letter.pdf"' 'href="mellophone-range.txt"' \
             'href="la-llorona.pdf">La Llorona<' "Vi's Hora &amp; &lt;co&gt;" '@0123456'; do
   grep -qF -- "$want" "$t/page.html" && echo "ok: page has $want" || { echo "FAIL: page lacks $want"; fail=1; }
 done
@@ -39,6 +40,9 @@ red live "$root/muertos/check-live.sh" https://example.test/ddlm/ fedcba9
 : >"$t/page.html"
 red live "$root/muertos/check-live.sh" https://example.test/ddlm/
 
+rm "$t/out/mellophone-range.txt"
+red "$root/muertos/index.sh" "$t/out" 0123456789abcdef "2026-11-02 00:00 UTC"
+: >"$t/out/mellophone-range.txt"
 rm "$t/out/vis-hora.pdf"
 red "$root/muertos/index.sh" "$t/out" 0123456789abcdef "2026-11-02 00:00 UTC"
 

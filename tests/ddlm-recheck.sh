@@ -11,7 +11,8 @@
 # new wrong note), and an allowance that no longer differs is red.
 # Unreadable input, a bad --allow or a crash is BLIND (exit 2), never green.
 # It also checks muertos/recheck.tsv names only songs that are in the book,
-# and that muertos/recheck.sh with no sources says BLIND.
+# and that muertos/recheck.sh with no sources says BLIND, and that
+# muertos/publish.sh refuses on it: nothing is cloned or pushed.
 set -uo pipefail
 root=$(git rev-parse --show-toplevel)
 r="$root/muertos/tools/recheck.py"
@@ -107,6 +108,22 @@ if [ "$rows" -ge 9 ]; then echo "ok: recheck.tsv has $rows rows"; else echo "FAI
 DDLM_SOURCES="$t/none" bash "$root/muertos/recheck.sh" >"$t/sh.out" 2>&1; rc=$?
 if [ $rc = 2 ] && grep -q '^BLIND: no sources' "$t/sh.out"; then echo "ok: recheck.sh without sources is BLIND"
 else echo "FAIL: recheck.sh without sources: rc=$rc"; cat "$t/sh.out"; fail=1; fi
+
+git init -q --bare "$t/site.git"
+git -C "$t/site.git" symbolic-ref HEAD refs/heads/master
+git clone -q "$t/site.git" "$t/seed" 2>/dev/null
+git -C "$t/seed" -c user.name=t -c user.email=t@t commit -q --allow-empty -m seed
+git -C "$t/seed" push -q origin HEAD:master
+before=$(git -C "$t/site.git" rev-parse master)
+DDLM_SOURCES="$t/none" DDLM_SITE="$t/site.git" DDLM_LIVE=http://127.0.0.1:9/ DDLM_TRIES=1 \
+  bash "$root/muertos/publish.sh" >"$t/pub.out" 2>&1; rc=$?
+after=$(git -C "$t/site.git" rev-parse master)
+if [ $rc != 0 ] && grep -q '^BLIND: no sources' "$t/pub.out" \
+   && grep -q 'recheck.sh is not green' "$t/pub.out" && [ "$before" = "$after" ]; then
+  echo "ok: publish.sh refuses when recheck.sh is BLIND; site untouched"
+else
+  echo "FAIL: publish.sh without a green recheck.sh: rc=$rc, site $before -> $after"; cat "$t/pub.out"; fail=1
+fi
 
 [ $fail = 0 ] && echo "ddlm-recheck: all ok"
 exit $fail

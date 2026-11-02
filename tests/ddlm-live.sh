@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # muertos/index.sh writes the ddlm page; muertos/check-live.sh reads it back
 # off the running site. Green on a good page, red on each injected failure:
-# a linked PDF answering 404, a stale page (sha absent), a song PDF missing
-# from the build. No LilyPond, no network: curl is stubbed.
+# a linked PDF or range report answering 404, a stale page (sha absent), a
+# song PDF or the range report missing from the build. No LilyPond, no network: curl is stubbed.
 set -uo pipefail
 root=$(git rev-parse --show-toplevel)
 t=$(mktemp -d); trap 'rm -rf "$t"' EXIT
@@ -35,6 +35,8 @@ live() { PATH="$t/bin:$PATH" STUB_PAGE="$t/page.html" "$@"; }
 
 ok  live "$root/muertos/check-live.sh" https://example.test/ddlm/ 0123456
 red live env STUB_RED=vis-hora.pdf "$root/muertos/check-live.sh" https://example.test/ddlm/ 0123456
+# The range report the page links answers 404: red, same as a dead PDF.
+red live env STUB_RED=mellophone-range.txt "$root/muertos/check-live.sh" https://example.test/ddlm/ 0123456
 red live env STUB_RED=/ddlm/ "$root/muertos/check-live.sh" https://example.test/ddlm/
 red live "$root/muertos/check-live.sh" https://example.test/ddlm/ fedcba9
 : >"$t/page.html"

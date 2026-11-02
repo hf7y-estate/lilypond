@@ -6,7 +6,10 @@
 # card a fifth and an octave away, and a card that carries only part of the
 # source. Each injected failure must be red and name the card measure: a
 # changed pitch, a changed rhythm, a rest where the source has a note, an
-# extra card note. Unreadable input is BLIND (exit 2), never green.
+# extra card note. An allowance names card measures: it takes a known
+# difference there, never one elsewhere (an old allowance must not hide a
+# new wrong note), and an allowance that no longer differs is red.
+# Unreadable input, a bad --allow or a crash is BLIND (exit 2), never green.
 # It also checks muertos/recheck.tsv names only songs that are in the book,
 # and that muertos/recheck.sh with no sources says BLIND.
 set -uo pipefail
@@ -64,9 +67,16 @@ echo "$src" | sed 's/^3 0 note 67 1$/3 0 rest - 1/' | ev "$t/rest.tsv" Voice:a
 expect "rest for a note is red" 1 "^DIFF: card m3 / pdf m3" -- "$t/rest.tsv" 1 "$t/src.tsv"
 { echo "$src"; echo '5 0 note 60 1'; } | ev "$t/extra.tsv" Voice:a
 expect "extra card note is red" 1 "^DIFF: card m5 / pdf -" -- "$t/extra.tsv" 1 "$t/src.tsv"
-expect "--allow 1 takes one known difference" 0 "^ok: .*1 differ, 1 allowed" -- "$t/pitch.tsv" 1 "$t/src.tsv" --allow 1
+expect "--allow 2 takes the known difference in m2" 0 "^ok: .*1 differ, 0 outside --allow 2" -- "$t/pitch.tsv" 1 "$t/src.tsv" --allow 2
+expect "--allow 2: the difference is listed as allowed" 0 "^allowed: card m2 / pdf m2" -- "$t/pitch.tsv" 1 "$t/src.tsv" --allow 2
 echo "$src" | sed 's/^2 1\/2 note 66 1\/2$/2 1\/2 note 65 1\/2/; s/^1 1\/4 note 70 3\/4$/1 1\/4 note 70 1\/2/' | ev "$t/two-diffs.tsv" Voice:a
-expect "--allow 1 is not two" 1 "^RED: .*2 differ, 1 allowed" -- "$t/two-diffs.tsv" 1 "$t/src.tsv" --allow 1
+expect "--allow 2 does not take a new one in m1" 1 "^DIFF: card m1 / pdf m1" -- "$t/two-diffs.tsv" 1 "$t/src.tsv" --allow 2
+expect "--allow 2 with a new m1: verdict" 1 "^RED: .*2 differ, 1 outside --allow 2" -- "$t/two-diffs.tsv" 1 "$t/src.tsv" --allow 2
+# The old count form let a fixed misreading's slot hide a new wrong note:
+# allow m2 (1 difference), the m2 reading is fixed, a new one lands in m1.
+expect "allowance moved to another measure is red" 1 "^DIFF: card m1 / pdf m1" -- "$t/rhythm.tsv" 1 "$t/src.tsv" --allow 2
+expect "allowance that now matches is stale" 1 "^STALE: --allow names card m2," -- "$t/same.tsv" 1 "$t/src.tsv" --allow 2
+expect "--allow 1-2 takes m1 and m2" 0 "^ok: .*2 differ, 0 outside" -- "$t/two-diffs.tsv" 1 "$t/src.tsv" --allow 1-2
 
 # Blind
 expect "missing card file" 2 "^BLIND: .*No such file" -- "$t/nope.tsv" 1 "$t/src.tsv"
@@ -76,13 +86,18 @@ printf '1\t0\t1\tnote\t60\n' >"$t/short.tsv"
 expect "short line" 2 "^BLIND: .*5 fields" -- "$t/short.tsv" 1 "$t/src.tsv"
 echo '1 0 rest - 1' | ev "$t/rests.tsv" Voice:a
 expect "no notes" 2 "^BLIND: no notes" -- "$t/rests.tsv" 1 "$t/src.tsv"
+expect "bad --allow" 2 "^BLIND: --allow 'x': want" -- "$t/same.tsv" 1 "$t/src.tsv" --allow x
+expect "--allow given as a count of 3" 1 "^STALE: --allow names card m3" -- "$t/same.tsv" 1 "$t/src.tsv" --allow 3
+printf '1\t0\t1\tnote\tx\t1/4\tVoice:a\n' >"$t/crash.tsv"
+expect "a crash is BLIND, not red" 2 "^BLIND: ValueError" -- "$t/crash.tsv" 1 "$t/src.tsv"
 
 # recheck.tsv rows name songs in the book; recheck.sh without sources is BLIND.
 rows=0
 while IFS=$'\t' read -r song pdf staff voice allow extra; do
   case $song in ''|'#'*) continue ;; esac
   rows=$((rows + 1))
-  if [ -z "$allow" ] || [ -n "${extra:-}" ] || ! [[ $staff$voice$allow =~ ^[0-9]+$ ]] || [ "${pdf%.pdf}" = "$pdf" ]; then
+  if [ -z "$allow" ] || [ -n "${extra:-}" ] || ! [[ $staff$voice =~ ^[0-9]+$ ]] \
+     || ! [[ $allow =~ ^(-|[0-9]+(-[0-9]+)?(,[0-9]+(-[0-9]+)?)*)$ ]] || [ "${pdf%.pdf}" = "$pdf" ]; then
     echo "FAIL: recheck.tsv row $rows: bad fields: $song|$pdf|$staff|$voice|$allow"; fail=1
   elif [ ! -f "$root/muertos/$song.ly" ] || ! grep -qx "\\\\$song-card" "$root/muertos/Book.ly"; then
     echo "FAIL: recheck.tsv row $rows: $song is not a card in muertos/Book.ly"; fail=1

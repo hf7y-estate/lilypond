@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """recheck.py -- does one voice of a card still say what its source PDF says?
 
-  recheck.py CARD.tsv VOICE SOURCE [--allow N]
+  recheck.py CARD.tsv VOICE SOURCE [--allow BARS]
 
 CARD.tsv is what muertos/tools/ly-events.ily wrote for one card. VOICE is
 the Nth voice in it (in order of first event). SOURCE is a PDF[:STAFF]
@@ -15,10 +15,14 @@ written for another instrument. A card carries a selection of its source,
 so measures only in the PDF are listed as "pdf only" and are not red.
 Every card token that does not line up with the PDF is red.
 
-Exit 0: at most N card tokens differ (--allow, default 0; for a known
-misreading, named in muertos/recheck.tsv). Exit 1: more differ; each is
-listed with its card and PDF measures. Exit 2 (BLIND): a file that cannot
-be read, no such voice, or no notes on either side.
+Exit 0: every card token that differs lies in a card measure named by
+--allow (BARS: "-" for none, or e.g. "14,16" or "20-23"; for a known
+misreading or a known change of form, said in muertos/recheck.tsv), and
+every allowed measure still differs. Exit 1: a difference outside the
+allowed measures, or an allowed measure that now matches (drop it from
+recheck.tsv, so it cannot later hide a new difference); each is named by
+its card and PDF measures. Exit 2 (BLIND): a file that cannot be read, no
+such voice, no notes on either side, a bad --allow, or a crash.
 """
 import argparse
 import collections
@@ -129,15 +133,29 @@ def span(bars, i, j):
     return f"m{bars[i]}" if bars[i] == bars[j - 1] else f"m{bars[i]}-{bars[j - 1]}"
 
 
+def parse_bars(spec):
+    """'-' -> set(); '14,16' -> {14, 16}; '20-23' -> {20, 21, 22, 23}."""
+    if spec == "-":
+        return set()
+    bars = set()
+    for part in spec.split(","):
+        lo, _, hi = part.partition("-")
+        if not lo.isdigit() or (hi and not hi.isdigit()) or (hi and int(hi) < int(lo)):
+            blind(f"--allow {spec!r}: want '-' or card measures like 14,16 or 20-23")
+        bars.update(range(int(lo), int(hi or lo) + 1))
+    return bars
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("card", nargs="?")
     ap.add_argument("voice", nargs="?", type=int)
     ap.add_argument("source", nargs="?")
-    ap.add_argument("--allow", type=int, default=0)
+    ap.add_argument("--allow", default="-")
     a = ap.parse_args()
     if not (a.card and a.voice and a.source):
         ap.error("CARD.tsv VOICE SOURCE are required")
+    allowed = parse_bars(a.allow)
     voices = read_tsv(a.card)
     if a.voice < 1 or a.voice > len(voices):
         blind(f"{a.card}: no voice {a.voice} (it has {len(voices)})")
@@ -152,22 +170,33 @@ def main():
     st, sb = tokens(src, 0)
     ct, cb = tokens(card, shift)
     sm = difflib.SequenceMatcher(None, st, ct, autojunk=False)
-    bad = 0
+    diff = red = 0
+    differing = set()
     for op, i1, i2, j1, j2 in sm.get_opcodes():
         if op == "equal":
             continue
         if op == "delete":
             print(f"pdf only: pdf {span(sb, i1, i2)}: {show(st[i1:i2])}")
             continue
-        bad += j2 - j1
-        print(f"DIFF: card {span(cb, j1, j2)} / pdf {span(sb, i1, i2)}: "
+        bars = set(cb[j1:j2])
+        differing |= bars
+        diff += j2 - j1
+        ok = bars <= allowed
+        red += 0 if ok else j2 - j1
+        print(f"{'allowed' if ok else 'DIFF'}: card {span(cb, j1, j2)} / pdf {span(sb, i1, i2)}: "
               f"card [{show(ct[j1:j2])}] pdf [{show(st[i1:i2])}]")
-    matched = len(ct) - bad
-    verdict = "ok" if bad <= a.allow else "RED"
-    print(f"{verdict}: card voice {a.voice}: {matched}/{len(ct)} tokens match the source "
-          f"(transposed {shift} semitones, pitch classes); {bad} differ, {a.allow} allowed")
-    return 0 if bad <= a.allow else 1
+    stale = sorted(allowed - differing)
+    if stale:
+        print(f"STALE: --allow names card m{', m'.join(map(str, stale))}, which now match "
+              f"the source: drop them from recheck.tsv")
+    verdict = "ok" if not red and not stale else "RED"
+    print(f"{verdict}: card voice {a.voice}: {len(ct) - diff}/{len(ct)} tokens match the source "
+          f"(transposed {shift} semitones, pitch classes); {diff} differ, {red} outside --allow {a.allow}")
+    return 0 if verdict == "ok" else 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except Exception as e:  # never let a crash read as red-or-green
+        blind(f"{type(e).__name__}: {e}")

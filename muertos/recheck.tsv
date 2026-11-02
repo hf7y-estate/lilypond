@@ -1,21 +1,25 @@
 # muertos/recheck.sh reads this: which 2026 source staff each voice of a
 # hand-entered card follows (#7). Tab-separated:
-#   song  PDF (under DDLM_SOURCES)  staff  card voice  allowed differences
+#   song  PDF (under DDLM_SOURCES)  staff  card voice  allowed card measures
+# The last field is "-", or the card measures (as recheck.sh prints them,
+# e.g. 14,16 or 20-23) where a difference is known and said below. A
+# difference anywhere else is red, and so is an allowed measure that now
+# matches.
 # Voices not listed have no 2026 counterpart: la_llorona 2 (intro
 # accompaniment), santa_sangre 2 and vis_hora 2 (accompaniment),
-# gnossienne 2 (accomp. simile). zeina allows 3: pdf2ly does not carry a
+# gnossienne 2 (accomp. simile). zeina allows m14 and m16: pdf2ly does not carry a
 # grace note's sharp through the measure (m14, m16 of the F part read
-# C natural where the page shows C sharp). gnossienne allows 8: the card
+# C natural where the page shows C sharp). gnossienne allows m20-23: the card
 # plays B again after C (card m20-23); the 2026 page prints A, B, C once.
-ana_dammi_falastini	Ana Dammi Falastini /Anna Dammi Falastini v3-Accompaniment_(F).pdf	1	1	0
-cairn_builder	Cairn Builder/Cairn Builder Concert.pdf	1	1	0
-the_fool	The Fool/The Fool (F).pdf	1	1	0
-the_fool	The Fool/The Fool (F).pdf	1	2	0
-the_fool	The Fool/The Fool (F).pdf	3	3	0
-gnossienne	Gnossienne No 1/Gnossienne No. 1-C_Instruments.pdf	1	1	8
-la_llorona	La Llorona/La Llorona F.pdf	1	1	0
-love_in_outer_space	Love In Outer Space/Love in Outer Space (F).pdf	1	1	0
-love_in_outer_space	Love In Outer Space/Love in Outer Space (F).pdf	2	2	0
-santa_sangre	Santa Sangre/Santa Sangre-C_Instruments.pdf	1	1	0
-vis_hora	Vi_s Hora/Vi_s Hora-C_Instruments.pdf	1	1	0
-zeina	Zeina/Zeina_v2-Accompaniment_(F).pdf	1	1	3
+ana_dammi_falastini	Ana Dammi Falastini /Anna Dammi Falastini v3-Accompaniment_(F).pdf	1	1	-
+cairn_builder	Cairn Builder/Cairn Builder Concert.pdf	1	1	-
+the_fool	The Fool/The Fool (F).pdf	1	1	-
+the_fool	The Fool/The Fool (F).pdf	1	2	-
+the_fool	The Fool/The Fool (F).pdf	3	3	-
+gnossienne	Gnossienne No 1/Gnossienne No. 1-C_Instruments.pdf	1	1	20-23
+la_llorona	La Llorona/La Llorona F.pdf	1	1	-
+love_in_outer_space	Love In Outer Space/Love in Outer Space (F).pdf	1	1	-
+love_in_outer_space	Love In Outer Space/Love in Outer Space (F).pdf	2	2	-
+santa_sangre	Santa Sangre/Santa Sangre-C_Instruments.pdf	1	1	-
+vis_hora	Vi_s Hora/Vi_s Hora-C_Instruments.pdf	1	1	-
+zeina	Zeina/Zeina_v2-Accompaniment_(F).pdf	1	1	14,16

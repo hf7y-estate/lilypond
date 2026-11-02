@@ -6,7 +6,8 @@
 # reading of the source staff. Red (exit 1) names each card measure that
 # no longer matches the PDF; fix it toward the PDF, or, if the reading is
 # wrong, say why in recheck.tsv. BLIND (exit 2): no sources, no LilyPond,
-# no PyMuPDF, a card that does not compile, or a song not in the book.
+# no PyMuPDF, a card that does not compile, a song not in the book or not
+# in recheck.tsv, or recheck.py failing in any other way.
 # Needs the host that holds the sources: DDLM_SOURCES, default
 # ~/ddlm-sources/2026/_DAY OF THE DEAD (never committed: other people's
 # arrangements).
@@ -33,7 +34,7 @@ events() {  # events SONG: $work/SONG.tsv from the song's card
   fi
 }
 
-rc=0 rows=0
+rc=0 rows=0 done_songs=()
 while IFS=$'\t' read -r song pdf staff voice allow; do
   case $song in ''|'#'*) continue ;; esac
   if [ $# -gt 0 ] && ! printf '%s\n' "$@" | grep -qx "$song"; then continue; fi
@@ -41,10 +42,15 @@ while IFS=$'\t' read -r song pdf staff voice allow; do
   echo "== $song voice $voice / $pdf staff $staff"
   python3 -I "$here/tools/recheck.py" "$work/$song.tsv" "$voice" "$src/$pdf:$staff" --allow "$allow"
   r=$?
+  case $r in 0|1) ;; *) echo "BLIND: recheck.py exit $r"; r=2 ;; esac
   [ $r -le $rc ] || rc=$r
   rows=$((rows + 1))
+  done_songs+=("$song")
 done <"$here/recheck.tsv"
 [ $rows -gt 0 ] || blind "no row of recheck.tsv matches: $*"
+for s in "$@"; do
+  printf '%s\n' "${done_songs[@]}" | grep -qx -- "$s" || blind "$s: no row in recheck.tsv"
+done
 case $rc in 0) echo "recheck.sh: $rows voices match their source" ;;
             1) echo "recheck.sh: RED, a card no longer matches its source (above)" ;; esac
 exit $rc

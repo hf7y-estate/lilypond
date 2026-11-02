@@ -10,15 +10,6 @@ melody = {
 	c4 bes,2 | s2. |  s2. | s2. |
 }
 
-harmonies = \chordmode {
-	es2.:maj7 | s2.*3 |
-	d2.:7 | s2.*3 |
-	f2.:m7 | s2.*3 |
-	es2.:6 | s2.*3 |
-	des2.:m6 | s2.*3 |
-	es2. | s2.*3 |
-}
-
 accompaniment = {
 	\repeat unfold 2 { 
 		<g bes d'>2 r4 | q8 q r2 |
@@ -58,9 +49,6 @@ love_in_outer_space-header = \header {
 
 love_in_outer_space-accompaniment = {
 	<<
-		\new ChordNames {
-			\harmonies
-		}
 		\new Staff {
 			<<
 				\form

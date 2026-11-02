@@ -83,6 +83,9 @@ harmonies = \chordmode {
 	d2.:m | a:m | d2.:m | R2
 }
 
+% Hand-entered: the 2026 source (The Fool (F).pdf) prints no chord symbols.
+the_fool-chords = \harmonies
+
 the_fool-header = \header {
 	piece = "The Fool"
 	composer = "Neutral Milk Hotel"
@@ -90,9 +93,6 @@ the_fool-header = \header {
 
 the_fool-accompaniment =
 <<
-	\new ChordNames {
-		\harmonies
-	}
 	\new Staff {
 		\form
 	}

@@ -3,7 +3,12 @@
 #   mellophone-cards.pdf   the book, one 5.5x8.5in card per page
 #   mellophone-letter.pdf  the same cards 2-up on landscape letter, cut line
 #   <song>.pdf             one cards PDF per song
-#   songs.tsv              <song>.pdf <TAB> title, in book order
+#   mellophone-chords-cards.pdf, mellophone-chords-letter.pdf
+#                          the book again with chord symbols (ddlmChords, #6)
+#   <song>-chords.pdf      a song's card with chord symbols, for each song
+#                          whose card has \withChords in Songs.ily
+#   songs.tsv              <song>.pdf <TAB> title <TAB> <song>-chords.pdf or -,
+#                          in book order
 #   mellophone-range.txt   written range per song, notes outside F#3-C6
 #                          (mellophone.ily writes it)
 # Fails on any LilyPond error, or on a page that is not 5.5x8.5in.
@@ -38,6 +43,13 @@ ly mellophone-cards "$here/Book.ly"
 card_size "$out/mellophone-cards.pdf"
 mv "$work/mellophone-cards-range.txt" "$out/mellophone-range.txt"
 
+# Book.ly with ddlmChords = ##t: the same cards with chord symbols.
+sed 's/^ddlmChords = ##f$/ddlmChords = ##t/' "$here/Book.ly" >"$work/book-chords.ly"
+grep -qx 'ddlmChords = ##t' "$work/book-chords.ly" \
+  || { echo "build.sh: Book.ly has no line 'ddlmChords = ##f'" >&2; exit 1; }
+ly mellophone-chords-cards "$work/book-chords.ly"
+card_size "$out/mellophone-chords-cards.pdf"
+
 : >"$out/songs.tsv"
 for song in $(sed -n 's/^\\\([A-Za-z_]*\)-card$/\1/p' "$here/Book.ly"); do
   name=${song//_/-}
@@ -46,11 +58,20 @@ for song in $(sed -n 's/^\\\([A-Za-z_]*\)-card$/\1/p' "$here/Book.ly"); do
   card_size "$out/$name.pdf"
   title=$(sed -n 's/^[[:space:]]*piece *= *"\(.*\)"[[:space:]]*$/\1/p' "$here/$song.ly" | head -1)
   [ -n "$title" ] || title=$(echo "${song//_/ }" | sed 's/\b\(.\)/\u\1/g')
-  printf '%s.pdf\t%s\n' "$name" "$title" >>"$out/songs.tsv"
+  chords=-
+  if grep -q "withChords \\\\$song-chords " "$here/Songs.ily"; then
+    { sed '/^\\[A-Za-z_]*-card$/d' "$work/book-chords.ly"; printf '\\%s-card\n' "$song"; } >"$work/$name-chords.ly"
+    ly "$name-chords" "$work/$name-chords.ly"
+    card_size "$out/$name-chords.pdf"
+    chords=$name-chords.pdf
+  fi
+  printf '%s.pdf\t%s\t%s\n' "$name" "$title" "$chords" >>"$out/songs.tsv"
 done
 
-gs -q -dBATCH -dNOPAUSE -dSAFER --permit-file-read="$out/mellophone-cards.pdf" \
-  -sDEVICE=pdfwrite -dDEVICEWIDTHPOINTS=792 -dDEVICEHEIGHTPOINTS=612 -dFIXEDMEDIA \
-  -sIN="$out/mellophone-cards.pdf" -o "$out/mellophone-letter.pdf" "$here/letter-2up.ps"
+for book in mellophone mellophone-chords; do
+  gs -q -dBATCH -dNOPAUSE -dSAFER --permit-file-read="$out/$book-cards.pdf" \
+    -sDEVICE=pdfwrite -dDEVICEWIDTHPOINTS=792 -dDEVICEHEIGHTPOINTS=612 -dFIXEDMEDIA \
+    -sIN="$out/$book-cards.pdf" -o "$out/$book-letter.pdf" "$here/letter-2up.ps"
+done
 
 echo "build.sh: $(wc -l <"$out/songs.tsv") songs in $out"

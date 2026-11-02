@@ -28,20 +28,6 @@ accompaniment = {
 	s1_\markup "accomp. simile"
 }
 
-harmonies = \chordmode {
-	f1:m | s1 |
-	f1:m | s1 |
-	f1:m | s1 | c1:m |
-	f1:m | s1 |
-
-	bes1:m | s1 |
-	f1:m | s1 |
-
-	f1:m | s1 |
-	f1:m | s1 |
-	f1:m | s1 |
-}
-
 form = {
 	\textMark "Lent"
 	\time 4/4
@@ -67,9 +53,6 @@ gnossienne-header = \header {
 }
 gnossienne-accompaniment = {
 	<<
-		\new ChordNames {
-			\harmonies
-		}
 		\new Staff {
 			<< 
 				<< 

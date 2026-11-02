@@ -1,0 +1,19 @@
+% gs ... -sIN=cards.pdf 2up.ps : two 5.5x8.5in cards side by side on
+% landscape letter (11x8.5in), dashed cut line down the middle.
+IN (r) file runpdfbegin
+/N pdfpagecount def
+1 2 N {
+  /i exch def
+  0 1 1 {
+    /k exch def
+    i k add N le {
+      gsave k 396 mul 0 translate
+      PDFFile i k add 1 sub .PDFDrawPage
+      grestore
+    } if
+  } for
+  gsave 0.4 setlinewidth [3 3] 0 setdash 0.5 setgray
+  396 0 moveto 396 612 lineto stroke grestore
+  showpage
+} for
+runpdfend

@@ -9,7 +9,8 @@
 # fifth lower with a pickup. Injected, each must not pass: a chord symbol
 # it cannot spell (BLIND), a chord over music the card leaves out (left
 # out and listed, not moved), two chords on one moment (BLIND), chords.sh
-# with no sources (BLIND, and publish.sh refuses), index.sh naming a chords
+# with no sources (BLIND), publish.sh run for real while chords.sh is red
+# or BLIND (refused, site repo untouched), index.sh naming a chords
 # PDF the build lacks, chords.tsv out of step with Songs.ily and chords/.
 # With lilypond and gs on PATH it also compiles a card both ways: chords
 # in the written key with ddlmChords = ##t, none with ##f, and never the
@@ -97,8 +98,42 @@ grep -q '^BLIND: two chords at card moment 0' <<<"$out" && ok "two chords on one
 DDLM_SOURCES="$t/none" bash "$m/chords.sh" >"$t/sh.out" 2>&1; rc=$?
 if [ $rc = 2 ] && grep -q '^BLIND: no sources' "$t/sh.out"; then ok "chords.sh without sources is BLIND"
 else bad "chords.sh without sources: rc=$rc"; cat "$t/sh.out"; fi
-grep -q '"$here/chords.sh" || die' "$m/publish.sh" && ok "publish.sh refuses unless chords.sh is green" \
-  || bad "publish.sh does not run chords.sh"
+# ---- publish.sh refuses while chords.sh is red or BLIND, before any push.
+# The adversary is a checkout whose chord symbols no longer match their PDF,
+# or a host that cannot read the PDFs at all. In a committed copy of
+# muertos/, recheck.sh and build.sh are stubbed green, so only chords.sh
+# decides; publish.sh runs for real against a local bare site repo. With
+# the chords.sh line taken out of publish.sh, both cases push and fail here.
+c="$t/pub"; mkdir -p "$c"; cp -r "$m" "$c/muertos"
+printf '#!/usr/bin/env bash\nexit 0\n' >"$c/muertos/recheck.sh"
+printf '%s\n' '#!/usr/bin/env bash' 'mkdir -p "$1" && cd "$1" || exit 1' \
+  'touch mellophone-cards.pdf mellophone-letter.pdf mellophone-range.txt x.pdf' \
+  "printf 'x.pdf\\tX\\t-\\n' >songs.tsv" >"$c/muertos/build.sh"
+cp "$m/chords.sh" "$t/chords.sh.real"
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+git -C "$c" init -q
+git init -q --bare "$t/site.git"
+git -C "$t/site.git" symbolic-ref HEAD refs/heads/master
+git clone -q "$t/site.git" "$t/seed" 2>/dev/null
+git -C "$t/seed" commit -q --allow-empty -m seed
+git -C "$t/seed" push -q origin HEAD:master
+for case in red blind; do
+  if [ $case = red ]; then
+    printf '#!/usr/bin/env bash\necho "RED: chords/x.ily is not what the PDF says"; exit 1\n' >"$c/muertos/chords.sh"
+  else cp "$t/chords.sh.real" "$c/muertos/chords.sh"; fi
+  chmod +x "$c"/muertos/*.sh
+  git -C "$c" add -A && git -C "$c" commit -q -m "$case"
+  before=$(git -C "$t/site.git" rev-parse master)
+  DDLM_SOURCES="$t/none" DDLM_SITE="$t/site.git" DDLM_LIVE=http://127.0.0.1:9/ DDLM_TRIES=1 \
+    bash "$c/muertos/publish.sh" >"$t/pub.out" 2>&1; rc=$?
+  after=$(git -C "$t/site.git" rev-parse master)
+  if [ $rc != 0 ] && grep -q 'chords.sh is not green' "$t/pub.out" && [ "$before" = "$after" ]; then
+    ok "publish.sh refuses while chords.sh is $case; site untouched"
+  else
+    bad "publish.sh with chords.sh $case: rc=$rc, site $before -> $after"; cat "$t/pub.out"
+  fi
+done
+unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL
 
 # ---- index.sh: "with chords" links, and a missing chords PDF is red
 mkdir "$t/out"

@@ -4,22 +4,22 @@ a-theme = \repeat volta 2 \transpose c c'' {
 	r4\p c8 es d4 c | \repeat unfold 2 { \acciaccatura { c8 } b,2 } |
 	r4 c8 es d4 c | \repeat unfold 2 { \acciaccatura { e8 } f2 } |
 	r4 c8 es d4 c | \acciaccatura { c8 } b,2 \acciaccatura { aes,?8 } g,2 |
-	\acciaccatura { f,8 } g,4 \acciaccatura { f,8 } g,2. | 
-		\acciaccatura { aes,?8 } g,4 \acciaccatura { g,8 } f,2. |
+	\acciaccatura { f,8 } g,8. f,16 g,2. | 
+		\acciaccatura { aes,?8 } g,8. g,16 f,2. |
 		R1 |
 }
 
 b-theme = \repeat volta 2 \transpose c c' {
 	\acciaccatura { aes8 } bes2\f \acciaccatura { aes8 } g2 |
 	\acciaccatura { aes8 } bes2 \acciaccatura { aes8 } g2 |
-	\acciaccatura { aes8 } g4\p \acciaccatura { g8 } f2. | R1 |
+	\acciaccatura { aes8 } g8.\p g16 f2. | R1 |
 }
 
 c-theme = \repeat volta 2 \transpose c c'' {
-	r8 c d e f g b g | f4 \acciaccatura { g8 } f2. |
+	r8 c d e f g b g | f8. g16 f2. |
 	\acciaccatura { g8 } f2 \acciaccatura { f8 } e2 |
 	\acciaccatura { des?8 } c2 \acciaccatura { c8 } b,2 |
-	\acciaccatura { aes,?8 } g,4 \acciaccatura { g,8 } f,2. |
+	\acciaccatura { aes,?8 } g,8. g,16 f,2. |
 	R1 |
 }
 

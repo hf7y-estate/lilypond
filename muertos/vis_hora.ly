@@ -1,22 +1,22 @@
 \version "2.24.1"
 
 a-theme = {
-	\partial 4 r4 |
-	c8 f8~f2~ | f2.~ | f~ | f |
+	\partial 4 c4 |
+	f2.~ | f~ | f~ | f |
 	\repeat percent 4 { aes4. g8 \acciaccatura { aes8 } g f | }
-	c8 e8~e2~ | 2.~ | 2.~ | 2 g8 aes16 a |
+	c8 e8~e2~ | 2.~ | 2.~ | 4. g8 aes a |
 
 	bes2.~ | 2.~ | 2.~ | 2. |
 	\repeat percent 4 { bes4. aes8 \acciaccatura { bes8 } aes8 g | }
-	c'8 f8~f2~ | 2.~ | 2.~ | 2
+	c'8 f8~f2~ | 2.~ | 2.~ | 4.
 }
 
 b-theme = {
+	\partial 4. a8 bes b |
 	\repeat volta 2 {
-		\partial 4 a8 bes16 b |
 		c'2.~ | 2.~ | 2.~ | 2. |
 		\repeat percent 4 { es'4. des'8 \acciaccatura { es'8 } des'8 c' | }
-		f'8 bes8~bes2~ | 2.~ | 2. | bes2 as4 |
+		f'8 bes8~bes2~ | 2.~ | 2. | bes4 as4. g8 |
 		g8 c'8~c'2~ | 2.~ | 2.~ | 2. |
 
 		\repeat unfold 2 { 
@@ -24,7 +24,11 @@ b-theme = {
 				\volta 1 { bes8 | }
 				\volta 2 { c8 | }
 		}
-		c8 f8~f2~ | 2.~ | 2.~ | f2
+		c8 f8~f2~ | 2.~ | 2.~ |
+		\alternative {
+			{ f4. a8 bes b | }
+			{ f2. | }
+		}
 	}
 }
 
@@ -52,11 +56,11 @@ form = \transpose c c' {
 		{
 			\partial 4 s4 | s2.*8 | \break
 			\grace { s8 } s2.*8 | \break
-			s2.*7 | s2 \break \tag #'phone \pageBreak
+			s2.*7 | s4. \break \tag #'phone \pageBreak
 		} >>
 	<< \b-theme
 		{	
-			\partial 4. s4 |
+			\partial 4. s4. |
 			s2.*8 | \break \grace { s8 }
 			s2.*8 | \break
 		} >>

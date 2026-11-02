@@ -5,10 +5,10 @@ a-melody = \transpose c c' {
 	\repeat volta 2 {
 		d2. | c | d8 f~ f2 | e2 d8 c |
 		d2. | c | d8 f~ f4 g | a2 g8 f |
-		g2~ 8 f | g2~ 8 f | f4 g f | e2 r8 e |
-		f8 e d2 | c4 d8 c~ 4 | d2. | 
+		g2~ 8 f | g2~ 8 f | f4 g f | e2~ 8 e |
+		f8 e d2 | c4 d8 c~ 4 | d2 r4 |
 		\alternative { 
-			{ r2 r8 c8 | }
+			{ R2. | }
 			{ d4 f8 g~ 4 | }
 		}
 	}
@@ -25,7 +25,7 @@ c-melody = \transpose c c' {
 	\partial 4 r8 c |
 	d2. | c | d8 f~ f2 | e2 d8 c |
 	d2. | c | d8 f~ f4 g | a2 g8 f |
-	g2~ 8 f | g2~ 8 f | g4~ 8 c'~ 4 | c'2 r8 c' |
+	g2~ 8 f | g2~ 8 f | g4~ 8 c'~ 4 | c'2~ 8 c' |
 	d'8 c' a2 | c'4 d'8 c'~ 4 | d'2. | r2 
 }
 

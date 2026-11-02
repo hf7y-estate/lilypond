@@ -56,7 +56,7 @@ a-melody = {
 		g4 f r4 | 
 		\alternative {
 			{ R2. | }
-			{ r4 r f | }
+			{ r4 r g | }
 		}
 	}
 }

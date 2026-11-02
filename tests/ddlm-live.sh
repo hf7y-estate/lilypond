@@ -17,7 +17,8 @@ printf 'la-llorona.pdf\tLa Llorona\nvis-hora.pdf\tVi'"'"'s Hora & <co>\n' >"$t/o
 ok "$root/muertos/index.sh" "$t/out" 0123456789abcdef "2026-11-02 00:00 UTC"
 "$root/muertos/index.sh" "$t/out" 0123456789abcdef "2026-11-02 00:00 UTC" >"$t/page.html"
 for want in 'href="mellophone-cards.pdf"' 'href="mellophone-letter.pdf"' \
-            'href="la-llorona.pdf">La Llorona<' "Vi's Hora &amp; &lt;co&gt;" '@0123456'; do
+            'href="la-llorona.pdf">La Llorona<' "Vi's Hora &amp; &lt;co&gt;" '@0123456' \
+            'href="https://github.com/hf7y-estate/lilypond/tree/0123456789abcdef/muertos"'; do
   grep -qF -- "$want" "$t/page.html" && echo "ok: page has $want" || { echo "FAIL: page lacks $want"; fail=1; }
 done
 

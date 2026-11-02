@@ -39,7 +39,7 @@ done <"$out/songs.tsv"
 cat <<HTML
 </ul>
 <p><small>Built $(printf %s "$date" | esc) from
-<a style="display:inline" href="https://github.com/hf7y/lilypond/tree/$sha/muertos">hf7y/lilypond@${sha:0:7}</a>.</small></p>
+<a style="display:inline" href="https://github.com/hf7y-estate/lilypond/tree/$sha/muertos">hf7y-estate/lilypond@${sha:0:7}</a>.</small></p>
 </body>
 </html>
 HTML

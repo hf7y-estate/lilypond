@@ -30,7 +30,7 @@ cd "$work/site"
 git add -A ddlm
 outside=$(git diff --cached --name-only | grep -v '^ddlm/' || true)
 [ -z "$outside" ] || die "would touch files outside ddlm/: $outside"
-git commit -q -m "ddlm: F mellophone card book from hf7y/lilypond@${sha:0:7}"
+git commit -q -m "ddlm: F mellophone card book from hf7y-estate/lilypond@${sha:0:7}"
 pushed=
 for _ in 1 2 3; do
   if git push -q origin HEAD:master; then pushed=1; break; fi

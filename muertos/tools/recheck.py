@@ -79,6 +79,7 @@ def pdf_events(spec):
     if not os.path.isfile(path):
         blind(f"{path}: no such file")
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    sys.dont_write_bytecode = True  # no __pycache__ in the checkout
     import pdf2ly  # needs PyMuPDF; only the PDF path does
     _, measures = pdf2ly.read(path, int(staff), lambda m: None)
     out = []

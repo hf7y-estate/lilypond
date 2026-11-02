@@ -16,8 +16,11 @@
 %        phrases). Costs, most important first: a join leap wider than a
 %        perfect fifth where the shift changes (the hard limit: leaving
 %        everything as written never has one), notes outside written
-%        C4-C6, octave changes, the size of the leaps at changed joins
-%        (doubled when no rest separates the phrases), phrases moved.
+%        C4-C6, a repeat or sequence not on its first phrase's shift
+%        (item 2: "Repeated or sequential phrases take the same shift"; the
+%        same two notes, or from three notes on the same intervals), octave
+%        changes, the size of the leaps at changed joins (doubled when no
+%        rest separates the phrases), phrases moved.
 %        Notes inside a phrase all move together, so a new leap can only
 %        appear at a join. Each part of a << >> is its own line; the lower
 %        voices of << ... \\ ... >> are not fitted (the player takes the
@@ -187,76 +190,134 @@ line of its own, but for the lower voices of a << ... \\\\ ... >>."
 
 #(define (player-group-top g) (apply max (map player-semis g)))
 
+#(define (player-phrase-tops p) (map player-group-top (vector-ref p 0)))
+
+#(define (player-phrase-key p)
+   "What makes two phrases the same for item 2's \"repeated or sequential
+phrases take the same shift\": the same two notes, or, from three notes
+on, the same intervals (a sequence: the same figure at another pitch).
+A lone note is no phrase to repeat: #f."
+   (let ((tops (player-phrase-tops p)))
+     (cond ((>= (length tops) 3)
+            (cons 'intervals (map - (cdr tops) (list-head tops (1- (length tops))))))
+           ((= (length tops) 2) (cons 'notes tops))
+           (else #f))))
+
+#(define (player-leaders phrases)
+   "Per phrase, the index of the first phrase with its key (itself when it
+is the first), or #f."
+   (let ((seen (make-hash-table)) (n (vector-length phrases)))
+     (list->vector
+      (map (lambda (i)
+             (let ((key (player-phrase-key (vector-ref phrases i))))
+               (and key
+                    (or (hash-ref seen key)
+                        (begin (hash-set! seen key i) i)))))
+           (iota n)))))
+
+#(define (player-choose phrases leaders targets)
+   "The dynamic programme: per phrase, the index in player-shifts of its
+shift. Costs, most important first: join leaps over player-join-limit,
+notes out of range, repeats not on their first phrase's shift (TARGETS,
+by phrase index), octave changes, leap size at changed joins, phrases
+moved."
+   (let* ((n (vector-length phrases))
+          (k (length player-shifts))
+          (best (make-vector n #f))     ; per phrase: vector of (cost . back)
+          (own (lambda (i s)
+                 (let ((out 0) (l (vector-ref leaders i)))
+                   (for-each
+                    (lambda (g)
+                      (for-each (lambda (note)
+                                  (let ((x (+ s (player-semis note))))
+                                    (if (or (< x player-low) (> x player-high))
+                                        (set! out (1+ out)))))
+                                g))
+                    (vector-ref (vector-ref phrases i) 0))
+                   (list 0 out
+                         (if (and l (not (= l i)) (vector-ref targets l)
+                                  (not (= s (vector-ref targets l))))
+                             1 0)
+                         0 0 (if (zero? s) 0 1)))))
+          (join (lambda (prev a p b)
+                  (if (= a b)
+                      (list 0 0 0 0 0 0)
+                      (let* ((from (+ a (player-group-top (last (vector-ref prev 0)))))
+                             (to (+ b (player-group-top (car (vector-ref p 0)))))
+                             (leap (abs (- to from))))
+                        (list (if (> leap player-join-limit) 1 0) 0 0 1
+                              (* leap (if (vector-ref p 1) 1 2)) 0))))))
+     (vector-set! best 0
+                  (list->vector (map (lambda (s) (cons (own 0 s) #f)) player-shifts)))
+     (do ((i 1 (1+ i))) ((= i n))
+       (vector-set!
+        best i
+        (list->vector
+         (map (lambda (s)
+                (let ((o (own i s)))
+                  (let pick ((j 0) (win #f))
+                    (if (= j k)
+                        win
+                        (let* ((a (list-ref player-shifts j))
+                               (c (map + (car (vector-ref (vector-ref best (1- i)) j))
+                                       (join (vector-ref phrases (1- i)) a
+                                             (vector-ref phrases i) s)
+                                       o)))
+                          (pick (1+ j)
+                                (if (or (not win) (player-cost<? c (car win)))
+                                    (cons c j) win)))))))
+              player-shifts))))
+     ;; walk back from the cheapest last choice
+     (let* ((last-row (vector-ref best (1- n)))
+            (choice (make-vector n 0)))
+       (let back ((i (1- n))
+                  (j (let pick ((j 1) (w 0))
+                       (cond ((= j k) w)
+                             ((player-cost<? (car (vector-ref last-row j))
+                                             (car (vector-ref last-row w)))
+                              (pick (1+ j) j))
+                             (else (pick (1+ j) w))))))
+         (if (>= i 0)
+             (begin
+               (vector-set! choice i j)
+               (back (1- i) (or (cdr (vector-ref (vector-ref best i) j)) 0)))))
+       choice)))
+
 #(define (player-fit-line! line)
-   "Choose and apply one octave shift per phrase of LINE."
+   "Choose and apply one octave shift per phrase of LINE. A repeat or
+sequence is asked to take its first phrase's shift; that first phrase's
+own choice can move once the repeats weigh in, so this runs again, with
+the new targets, until they hold still (at most 4 rounds)."
    (let* ((phrases (list->vector (player-phrases line)))
-          (n (vector-length phrases))
-          (k (length player-shifts)))
+          (n (vector-length phrases)))
      (if (> n 0)
-         (let ((best (make-vector n #f))     ; per phrase: vector of (cost . back)
-               (own (lambda (p s)
-                      (let ((out 0))
-                        (for-each
-                         (lambda (g)
-                           (for-each (lambda (note)
-                                       (let ((x (+ s (player-semis note))))
-                                         (if (or (< x player-low) (> x player-high))
-                                             (set! out (1+ out)))))
-                                     g))
-                         (vector-ref p 0))
-                        (list 0 out 0 0 (if (zero? s) 0 1)))))
-               (join (lambda (prev a p b)
-                       (if (= a b)
-                           (list 0 0 0 0 0)
-                           (let* ((from (+ a (player-group-top (last (vector-ref prev 0)))))
-                                  (to (+ b (player-group-top (car (vector-ref p 0)))))
-                                  (leap (abs (- to from))))
-                             (list (if (> leap player-join-limit) 1 0) 0 1
-                                   (* leap (if (vector-ref p 1) 1 2)) 0))))))
-           (vector-set! best 0
-                        (list->vector (map (lambda (s) (cons (own (vector-ref phrases 0) s) #f))
-                                           player-shifts)))
-           (do ((i 1 (1+ i))) ((= i n))
-             (vector-set!
-              best i
-              (list->vector
-               (map (lambda (s)
-                      (let ((o (own (vector-ref phrases i) s)))
-                        (let pick ((j 0) (win #f))
-                          (if (= j k)
-                              win
-                              (let* ((a (list-ref player-shifts j))
-                                     (c (map + (car (vector-ref (vector-ref best (1- i)) j))
-                                             (join (vector-ref phrases (1- i)) a
-                                                   (vector-ref phrases i) s)
-                                             o)))
-                                (pick (1+ j)
-                                      (if (or (not win) (player-cost<? c (car win)))
-                                          (cons c j) win)))))))
-                    player-shifts))))
-           ;; walk back from the cheapest last choice, shifting each phrase
-           (let ((last-row (vector-ref best (1- n))))
-             (let back ((i (1- n))
-                        (j (let pick ((j 1) (w 0))
-                             (cond ((= j k) w)
-                                   ((player-cost<? (car (vector-ref last-row j))
-                                                   (car (vector-ref last-row w)))
-                                    (pick (1+ j) j))
-                                   (else (pick (1+ j) w))))))
-               (if (>= i 0)
-                   (let ((s (list-ref player-shifts j)))
-                     (if (not (zero? s))
-                         (for-each
-                          (lambda (g)
-                            (for-each
-                             (lambda (note)
-                               (ly:music-set-property!
-                                note 'pitch
-                                (ly:pitch-transpose (ly:music-property note 'pitch)
-                                                    (ly:make-pitch (/ s 12) 0 0))))
-                             g))
-                          (vector-ref (vector-ref phrases i) 0)))
-                     (back (1- i) (or (cdr (vector-ref (vector-ref best i) j)) 0))))))))))
+         (let* ((leaders (player-leaders phrases))
+                (choice
+                 (let round ((r 0) (targets (make-vector n #f)))
+                   (let* ((c (player-choose phrases leaders targets))
+                          (next (make-vector n #f)))
+                     (for-each (lambda (i)
+                                 (let ((l (vector-ref leaders i)))
+                                   (if (and l (not (= l i)))
+                                       (vector-set! next l
+                                                    (list-ref player-shifts (vector-ref c l))))))
+                               (iota n))
+                     (if (or (equal? next targets) (= r 3))
+                         c
+                         (round (1+ r) next))))))
+           (do ((i 0 (1+ i))) ((= i n))
+             (let ((s (list-ref player-shifts (vector-ref choice i))))
+               (if (not (zero? s))
+                   (for-each
+                    (lambda (g)
+                      (for-each
+                       (lambda (note)
+                         (ly:music-set-property!
+                          note 'pitch
+                          (ly:pitch-transpose (ly:music-property note 'pitch)
+                                              (ly:make-pitch (/ s 12) 0 0))))
+                       g))
+                    (vector-ref (vector-ref phrases i) 0)))))))))
 
 mellophonePart =
 #(define-music-function (music) (ly:music?)

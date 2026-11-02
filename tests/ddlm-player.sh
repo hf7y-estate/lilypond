@@ -63,6 +63,20 @@ want "out of range left as is is warned" "$(grep -c 'mellophone: .*outside C4-C6
 fixture fifth-inj "#(set! player-join-limit 12)" "c'4( e' g'' c''') | d'''2( e''') |"
 want "injected: join limit an octave lets it leap" "$(notes fifth-inj)" "60 64 79 84 74 76"
 
+# Repeated and sequential phrases take the same shift (#8 item 2).
+# D4 E4 F4 stays; the high phrase goes down; the low A3 has to go up, and
+# fewest octave changes alone would leave everything after it up there:
+# the repeat of D4 E4 F4 at D5 E5 F5, its sequence E4 F#4 G4 at E5 F#5 G5.
+# Both take the first phrase's shift instead (A4 -> D4 is a fifth).
+rep="d'4( e' f'2) | r1 | a''4( g'' c'''2) | r1 | a1 | r1 | d'4( e' f'2) | r1 | e'4( fis' g'2) |"
+fixture repeat "" "$rep"
+want "a repeat and a sequence take the first phrase's shift" "$(notes repeat)" \
+  "62 64 65 69 67 72 69 62 64 65 64 66 67"
+# Injected: no phrase is a repeat of another -> they land an octave up.
+fixture repeat-inj "#(define (player-phrase-key p) #f)" "$rep"
+want "injected: without the repeat rule they move" "$(notes repeat-inj)" \
+  "62 64 65 69 67 72 69 74 76 77 76 78 79"
+
 # ---- top note, fingering
 # <c' e' g'> <d' f' a'> -> G4 A4; two voices E5/C5 then C#5/A4 -> only the
 # top voice is fingered; Db5 after C#5 is another pitch and is fingered.

@@ -193,8 +193,7 @@ card vis vis_hora "#(define ly-events-file \"$t/vis.tsv\")
 \\include \"tools/ly-events.ily\"" && want "vis_hora: one voice prints" "$(voices vis)" 1
 card fool the_fool "#(define ly-events-file \"$t/fool.tsv\")
 \\include \"tools/ly-events.ily\"" \
-  && { n=$(voices fool); [ "$n" -gt 1 ] && ok "the_fool keeps its $n voices (open cue question)" \
-       || bad "the_fool prints $n voice, want its cue and harmony both"; }
+  && want "the_fool: section C cue dropped, one voice prints (#25, Zach 2026-11-02: Mids)" "$(voices fool)" 1
 
 [ $fail = 0 ] && echo "ddlm-player: all ok"
 exit $fail

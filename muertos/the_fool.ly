@@ -53,10 +53,8 @@ form = {
 			s2.*7 | s2 }
 	>> \break
 	\mark #3
-	<< 
-		\new CueVoice { \voiceOne \c-melody }
-		\\
-		\c-harmony
+	<<
+		{ \c-harmony }
 		{
 			\partial 4 s4 | \bar "||"
 			s2.*8 |

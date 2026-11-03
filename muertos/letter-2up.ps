@@ -1,7 +1,8 @@
-% gs ... -sIN=cards.pdf letter-2up.ps : 5.5x4.25in cards two to a sheet on
-% the top half of landscape letter (11x8.5in), slots (0,306)-(396,612) and
-% (396,306)-(792,612) in PDF points; the bottom half is left blank for the
-% lyre clip. Dashed cut lines at x=396 (top half only) and y=306.
+% gs ... -sIN=cards.pdf letter-2up.ps : 5.5x6in cards two to a sheet at
+% the top of landscape letter (11x8.5in), slots (0,180)-(396,612) and
+% (396,180)-(792,612) in PDF points (#25); the bottom 2.5in is left blank
+% for the lyre clip. Dashed cut lines at x=396 (beside the cards only) and
+% y=180, the cards' bottom edge, 432pt (6in) down from the top.
 IN (r) file runpdfbegin
 /N pdfpagecount def
 1 2 N {
@@ -9,14 +10,14 @@ IN (r) file runpdfbegin
   0 1 1 {
     /k exch def
     i k add N le {
-      gsave k 396 mul 306 translate
+      gsave k 396 mul 180 translate
       PDFFile i k add 1 sub .PDFDrawPage
       grestore
     } if
   } for
   gsave 0.4 setlinewidth [3 3] 0 setdash 0.5 setgray
-  396 306 moveto 396 612 lineto stroke
-  0 306 moveto 792 306 lineto stroke grestore
+  396 180 moveto 396 612 lineto stroke
+  0 180 moveto 792 180 lineto stroke grestore
   showpage
 } for
 runpdfend

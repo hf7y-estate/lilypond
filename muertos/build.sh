@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # muertos/build.sh OUTDIR -- build the F mellophone card book into OUTDIR:
-#   mellophone-cards.pdf   the book, one 5.5x4.25in (quarter-letter) card per
-#                          page, a song over as many cards as it needs
-#   mellophone-letter.pdf  the same cards 2-up on the top half of landscape
-#                          letter (letter-2up.ps), bottom half blank for the
-#                          lyre clip, dashed cut lines
+#   mellophone-cards.pdf   the book, one 5.5x6in card per page (#25), one
+#                          card a song where it fits, else as many as it
+#                          needs
+#   mellophone-letter.pdf  the same cards 2-up at the top of landscape
+#                          letter (letter-2up.ps), the bottom 2.5in blank
+#                          for the lyre clip, dashed cut lines
 #   <song>.pdf             one cards PDF per song
 #   mellophone-chords-cards.pdf, mellophone-chords-letter.pdf
 #                          the book again with chord symbols (ddlmChords, #6)
@@ -15,8 +16,11 @@
 #   mellophone-range.txt   written range per song, notes outside C4-C6
 #                          (mellophone.ily writes it)
 # Fails on any LilyPond error, on a card LilyPond had to compress (more
-# systems than it holds: player.ily's player-card-systems), or on a page
-# that is not 5.5x4.25in.
+# systems than it holds: player.ily's player-card-systems), on a page
+# that is not 5.5x6in, or on a song's next card that does not start at a
+# rehearsal mark (#25 item 4: "a 2-page song breaks at a rehearsal-section
+# start, never inside one"; player.ily's layout report says where each
+# card starts).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 out=${1:?usage: build.sh OUTDIR}
@@ -39,11 +43,18 @@ ly() {  # ly NAME FILE: compile FILE to $out/NAME.pdf, zero errors
     1) ;;
     *) echo "build.sh: BLIND: cannot read LilyPond's log $log (grep rc=$rc); refusing" >&2; exit 1 ;;
   esac
+  # every card after a song's first starts at a rehearsal mark: player.ily
+  # writes "page <song> <card> <system> <systems> <bar> mark|rest|none"
+  # for each. No report at all is BLIND: then nothing was checked.
+  local layout="$work/$1-layout.txt" off
+  [ -r "$layout" ] || { echo "build.sh: BLIND: no layout report $layout; refusing" >&2; exit 1; }
+  off=$(awk -F'\t' '$1=="page" && $7!="mark"{printf "%s card %s (bar %s, %s); ", $2, $3, $6, $7}' "$layout")
+  [ -z "$off" ] || { echo "build.sh: $2: a card that does not start at a rehearsal mark: $off" >&2; exit 1; }
   mv "$work/$1.pdf" "$out/$1.pdf"
 }
 
-card_size() {  # every page of $1 must be 396x306pt (5.5x4.25in)
-  # gs prints "<pages> <pages that are 396x306>". Anything else -- gs
+card_size() {  # every page of $1 must be 396x432pt (5.5x6in)
+  # gs prints "<pages> <pages that are 396x432>". Anything else -- gs
   # failing, an unreadable or missing PDF, no pages -- is BLIND and refused:
   # a check that read nothing has passed nothing.
   local got err
@@ -51,14 +62,14 @@ card_size() {  # every page of $1 must be 396x306pt (5.5x4.25in)
   if ! got=$(gs -q -dNODISPLAY -dSAFER --permit-file-read="$1" -sIN="$1" -c \
     'IN (r) file runpdfbegin pdfpagecount =only ( ) print
      0 1 1 pdfpagecount { pdfgetpage /MediaBox get
-     dup 2 get round cvi 396 eq exch 3 get round cvi 306 eq and { 1 add } if }
+     dup 2 get round cvi 396 eq exch 3 get round cvi 432 eq and { 1 add } if }
      for = quit' 2>"$err") || ! [[ $got =~ ^([1-9][0-9]*)\ ([0-9]+)$ ]]; then
     cat "$err" >&2
     echo "build.sh: BLIND: cannot read the pages of $1 (gs said [$got]); refusing" >&2
     exit 1
   fi
   [ "${BASH_REMATCH[1]}" = "${BASH_REMATCH[2]}" ] || {
-    echo "build.sh: $1 has a page that is not 5.5x4.25in" \
+    echo "build.sh: $1 has a page that is not 5.5x6in" \
       "(${BASH_REMATCH[2]} of ${BASH_REMATCH[1]} are)" >&2; exit 1; }
 }
 

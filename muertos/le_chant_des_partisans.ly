@@ -1,7 +1,7 @@
 \version "2.24.1"
 % Le Chant des Partisans: read from "Le Chant des Partisans-Alto_Saxophone.pdf" (staff 1) by
 % muertos/tools/pdf2ly.py; regenerate with that command, do not hand-edit
-% the notes.  Written for an instrument in ees; \transpose c' ees sounds it at concert pitch.
+% the notes, except m30-m34 (below).  Written for an instrument in ees; \transpose c' ees sounds it at concert pitch.
 % 34 measures; 0 CHECK
 
 le_chant_des_partisans-header = \header {
@@ -73,15 +73,23 @@ le_chant_des_partisans-accompaniment = \transpose c' ees {
   b'4 b'8 a'8 g'4 d'8. fis'16 |
   % m29
   e'4 d'2 r4 |
+  % m30-m34, hand-edited (#25 item 7, Zach 2026-11-02: "the rhythm at the
+  % end should be rewritten for clarity (16th note instead of 8th note?)").
+  % The source (Le Chant des Partisans-Alto_Saxophone.pdf, m30-34) writes
+  % the B a 16th before beat 4 (m30, 32, 34) and before beat 2 (m31, 33) as
+  % an 8th that runs over the beat, then a 16th rest: r8 r16 b'8 r16 b'8,
+  % g'8. b'8 r16 b'8. Here that B is a 16th and the rest after it an 8th:
+  % every note starts where the source's does, and each beat starts on a
+  % rest or note of its own.
   % m30
-  r2 r8 r16 b'8 r16 b'8 |
+  r2 r8. b'16 r8 b'8 |
   % m31
-  \bar ".|:" \mark \markup \box "Chorus" g'8.^\markup "Call / Response" b'8 r16 b'8 g'8. r16 r4 |
+  \bar ".|:" \mark \markup \box "Chorus" g'8.^\markup "Call / Response" b'16 r8 b'8 g'8. r16 r4 |
   % m32
-  r2 r8 r16 b'8 r16 b'8 |
+  r2 r8. b'16 r8 b'8 |
   % m33
-  g'8. b'8 r16 b'8 g'8. r16 r4 |
+  g'8. b'16 r8 b'8 g'8. r16 r4 |
   % m34
-  r2 r8 r16 b'8 r16 b'8 |
+  r2 r8. b'16 r8 b'8 |
   \bar ":|."
 }

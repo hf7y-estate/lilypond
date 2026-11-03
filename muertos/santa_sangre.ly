@@ -36,26 +36,22 @@ accompaniment = \transpose c f {
 form = {
 	\time 4/4
 	\key bes \major
-	<< \theme
-		{ 	s2. | s1*3 | s4 \break 
-			s2. | s1*3 | s4 \break
-			s2. | s1*3 | s4 \break
-			s2. | s1*3 | s4 }
-	>>
-	\cueBox \markup { "Mids take melody" \concat { "3" \super"rd" } "time" }
+}
+
+% The label over the melody's own system: the 2026 chart's cue box, "Mids
+% take melody 3rd time" (this file, before #25).
+santa_sangre-melody-label = \markup \bold {
+	"Mids take melody" \concat { "3" \super "rd" } "time"
 }
 
 santa_sangre-header = \header {
 	piece = "Santa Sangre"
 }
 
-santa_sangre-accompaniment = {
-	<<
-		\new Staff {
-			<<
-				\magnifyMusic 0.63 { \form } \\
-				\accompaniment
-			>>
-		}
-	>>
-}
+% The part is the accompaniment; the melody prints below it as a system
+% of its own, labeled, not as cue notes above it (#25 item 6, Zach
+% 2026-11-02: "santa sangre, print melody below as separate system, not as
+% cues above. so 3rd time becomes a labeled system").
+santa_sangre-accompaniment = \new Staff { \form \accompaniment }
+
+santa_sangre-melody = \new Staff { \form \theme }

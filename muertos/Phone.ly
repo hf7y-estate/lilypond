@@ -31,19 +31,22 @@
 #(set! paper-alist
   (cons '("card" . (cons (* 5.5 in) (* 8.5 in))) paper-alist))
 #(set! paper-alist
-  (cons '("quarter" . (cons (* 5.5 in) (* 4.25 in))) paper-alist))
-#(set! paper-alist
   (cons '("phone" . (cons (* 5.5 in) (* 2.5 in))) paper-alist))
 
+#(set! paper-alist
+  (cons '("lyre" . (cons (* 5.5 in) (* 6 in))) paper-alist))
+
 \paper {
-  % The lyre cards (#21): 5.5x4.25in, systems packed from the top at
-  % 10 staff spaces (never under 9), no stretch. A card holds 6 systems
-  % (player.ily's player-card-systems, measured with this spacing); a
-  % song with more goes on to more cards, at the breaks player.ily picks.
+  % The lyre cards (#25, Zach 2026-11-02: "treat the page height as 6
+  % inches including margin"): 5.5x6in, systems packed from the top at
+  % 8 staff spaces (never under 7, 0.5 between skylines), no stretch: "generally pieces on 2
+  % pages now should aim for 1 page", so the spacing is tighter than #21's
+  % 10. player.ily's player-card-systems is what a card holds at this
+  % spacing; a song with more goes on to a second card.
   system-system-spacing =
-    #'((basic-distance . 10)
-       (minimum-distance . 9)
-       (padding . 1)
+    #'((basic-distance . 8)
+       (minimum-distance . 7)
+       (padding . 0.5)
        (stretchability . 0))
   ragged-bottom = ##t
   ragged-last-bottom = ##t
@@ -54,13 +57,12 @@
   % the card's spare height goes between the systems, not under the last
   last-bottom-spacing.stretchability = 0
   markup-system-spacing =
-    #'((basic-distance . 10)
+    #'((basic-distance . 8)
        (minimum-distance . 0)
        (padding . 0)
        (stretchability . 12))
 
-  % #(set-paper-size "phone")
-  #(set-paper-size "quarter")
+  #(set-paper-size "lyre")
 
     scoreTitleMarkup = \markup {
       \fill-line {
@@ -70,8 +72,11 @@
       }
     }
     bookTitleMarkup = \markup { }
-    evenHeaderMarkup = \markup \null
-    oddHeaderMarkup = \markup \null
+    % a song's 2nd card: its name, small, top left, so the cards collate
+    % (#25: "print small title where possible on 2nd pages")
+    evenHeaderMarkup = \markup \unless \on-first-page-of-part
+      \fill-line { \small \italic \fromproperty #'header:piece \null }
+    oddHeaderMarkup = \evenHeaderMarkup
 }
 
 #(set-global-staff-size 14)

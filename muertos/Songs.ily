@@ -101,6 +101,11 @@ santa_sangre-card = \bookpart {
 	\removeWithTag #'phone
 	\mellophonePart
 	\withChords \santa_sangre-chords \santa_sangre-accompaniment
+	\santa_sangre-melody-label
+	\score {
+		\header { piece = ##f instrument = ##f composer = ##f }
+		\mellophonePart \santa_sangre-melody
+	}
 }
 
 vis_hora-card = \bookpart {

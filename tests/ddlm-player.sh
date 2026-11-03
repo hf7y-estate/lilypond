@@ -2,7 +2,7 @@
 # The player profile (muertos/player.ily, hf7y-estate/lilypond#8):
 # \mellophonePart's top-note reduction and whole-phrase range fit, the
 # fingering rules in muertos/mellophone.ily (top note only, spelled pitch,
-# "12" not "1-2") and the card layout (5.5x4.25in cards, #21), on small
+# "12" not "1-2") and the card layout (5.5x6in cards, #21/#25), on small
 # fixtures and on the book.
 # Reads the notes back with muertos/tools/ly-events.ily and the systems
 # and fingerings from the <output>-layout.txt player.ily writes.
@@ -122,6 +122,28 @@ fixture cue-mag "" "<< \\magnifyMusic 0.63 { e''2 cis''2 } \\\\ { c''2 a'2 } >> 
 want "a \\magnifyMusic top voice keeps the voice under it" "$(notes cue-mag)" "76 72 73 69"
 fixture cue-voice "" "<< \\new CueVoice { \\voiceOne e''2 cis''2 } \\\\ { c''2 a'2 } >> |"
 want "a CueVoice top voice keeps the voice under it" "$(notes cue-voice)" "76 72 73 69"
+# the book's CueVoice check below reads ly-events.ily's voice column: it
+# must name a CueVoice when there is one
+want "ly-events names a CueVoice" "$(awk -F'\t' '$4=="note" && $7 ~ /^CueVoice:/' "$t/cue-voice.tsv" | wc -l)" 2
+
+# ---- grace notes are fingered at the size of every other fingering (#25
+# item 9, Zach 2026-11-02: "grace note fingerings are too small")
+fsize() { awk -F'\t' '$1=="finger"{print $7, $6}' "$t/$1-layout.txt" | sort -u | tr '\n' ' '; }
+fixture grace "" "\\acciaccatura { d''8 } c''2. \\acciaccatura { e''8 } f''4 |"
+want "grace and note fingerings are one size" "$(fsize grace)" "grace -4 note -4 "
+# Injected: without Mellophone_engraver's acknowledger the grace's own
+# font-size (-8, LilyPond's graceSettings) is back
+rm -rf "$t/m-grace"; cp -r "$m" "$t/m-grace"
+sed -i "s/(ly:grob-set-property! grob 'font-size mellophone-fingering-size)/#t/" "$t/m-grace/mellophone.ily"
+if ! grep -q . <(diff "$m/mellophone.ily" "$t/m-grace/mellophone.ily"); then bad "grace-inj: the sed changed nothing in mellophone.ily"
+else
+  sed "s|^\\\\include \"mellophone.ily\"|\\\\include \"$t/m-grace/mellophone.ily\"|" "$t/grace.ly" >"$t/grace-inj.ly"
+  if lilypond -I "$t/m-grace" -o "$t/grace-inj" "$t/grace-inj.ly" >"$t/grace-inj.log" 2>&1; then
+    got=$(fsize grace-inj)
+    [ "$got" != "grace -4 note -4 " ] && ok "injected: without the acknowledger the grace fingering is [$got]" \
+      || bad "injected: without the acknowledger the grace fingering is still [$got]"
+  else bad "lilypond failed on grace-inj:"; tail -5 "$t/grace-inj.log"; fi
+fi
 # \magnifyMusic's own output is unchanged by the mark player.ily puts on it.
 fixture mag-up "" "\\magnifyMusic 1.5 { c''2 d''2 } |"
 want "\\magnifyMusic above 1 is no cue, and still engraves" "$(notes mag-up)" "72 74"
@@ -140,12 +162,20 @@ if ly book; then
   want "no fingering with a dash" "$(awk -F'\t' '$1=="finger" && $5 ~ /-/' "$L" | wc -l)" 0
   want "zeina's Db5 (m29) carries a fingering" \
     "$(awk -F'\t' '$1=="finger" && $2=="zeina" && $4=="Db5"{print $3, $5}' "$L")" "29 12"
-  # every card of every song holds at most 6 systems: from each song's
+  # every fingering in the book one size, and some of them on grace notes
+  want "the book's fingerings, grace and note, are one size" \
+    "$(awk -F'\t' '$1=="finger"{print $7, $6}' "$L" | sort -u | tr '\n' ' ')" "grace -4 note -4 "
+  # every card of every song holds at most 11 systems: from each song's
   # "page" lines (a card's first system) and its system count
-  want "no card over 6 systems" "$(awk -F'\t' '
+  want "no card over 11 systems" "$(awk -F'\t' '
       $1=="system" { n[$2]=$3 }
-      $1=="page"   { if ($4 - (($2 in last) ? last[$2] : 1) > 6) print $2, $4; last[$2]=$4 }
-      END { for (s in n) if (n[s] + 1 - ((s in last) ? last[s] : 1) > 6) print s, "end" }' "$L" | wc -l)" 0
+      $1=="page"   { if ($4 - (($2 in last) ? last[$2] : 1) > 11) print $2, $4; last[$2]=$4 }
+      END { for (s in n) if (n[s] + 1 - ((s in last) ? last[s] : 1) > 11) print s, "end" }' "$L" | wc -l)" 0
+  # one card a song but zeina (#25: "generally pieces on 2 pages now should
+  # aim for 1 page"): only zeina has a "page" line, and every one is at a mark
+  want "only zeina goes on to a 2nd card" \
+    "$(awk -F'\t' '$1=="page"{print $2}' "$L" | sort -u | tr '\n' ' ')" "zeina "
+  want "every 2nd card starts at a rehearsal mark" "$(awk -F'\t' '$1=="page" && $7!="mark"' "$L" | wc -l)" 0
   want "no compressed card" "$(grep -c 'compress' "$t/book.log")" 0
 fi
 
@@ -155,22 +185,24 @@ card() {  # card NAME SONG [LINES]: LINES go before Songs.ily's \include
     printf '%s\n' "${3:-}" '\include "Songs.ily"' "\\$2-card"; } >"$t/$1.ly"
   ly "$1"
 }
-# A card holds 6 systems (player.ily's player-card-systems, measured on
-# 5.5x4.25in for #21); a song goes over as many cards as it needs, each
+# A card holds 11 systems (player.ily's player-card-systems, measured on
+# 5.5x6in for #25); a song goes over as many cards as it needs, each
 # page break at a rehearsal mark, else at a rest, where one is in reach.
 breaks() { awk -F'\t' '$1=="page"{printf "%s@%s ", $6, $7}' "$1" | sed 's/ $//'; }
 if card card-zeina zeina; then
-  want "zeina's 14 systems go on 3 cards" "$(pages "$t/card-zeina.pdf")" 3
-  want "zeina's cards break at its marks (bar@kind)" "$(breaks "$t/card-zeina-layout.txt")" "25@mark 44@mark"
+  want "zeina's 13 systems go on 2 cards" "$(pages "$t/card-zeina.pdf")" 2
+  want "zeina's 2nd card starts at its mark C (bar@kind)" "$(breaks "$t/card-zeina-layout.txt")" "25@mark"
 fi
-# Injected: no break is better than another -> zeina splits evenly, off its marks.
+# Injected: marks are the worst place to break -> zeina breaks off its marks.
 if card card-zeina-inj zeina '#(define player-card-breaks
-  (let ((f player-card-breaks)) (lambda (s kind) (f s (lambda (k) 2)))))'; then
+  (let ((f player-card-breaks)) (lambda (s kind) (f s (lambda (k) (- 2 (kind k)))))))'; then
   got=$(breaks "$t/card-zeina-inj-layout.txt")
-  [ "$got" != "25@mark 44@mark" ] && ok "injected: without the mark/rest preference zeina breaks at [$got]" \
-    || bad "injected: without the preference zeina still breaks at [$got]"
+  [ "$got" != "25@mark" ] && ok "injected: with the preference reversed zeina breaks at [$got]" \
+    || bad "injected: with the preference reversed zeina still breaks at [$got]"
 fi
-card card-voodoo voodoo && want "voodoo's card breaks at a rest (bar@kind)" "$(breaks "$t/card-voodoo-layout.txt")" "21@rest"
+for s in voodoo vis_hora le_chant_des_partisans the_fool la_llorona; do
+  card "card-$s" "$s" && want "$s's card has 1 page" "$(pages "$t/card-$s.pdf")" 1
+done
 card card-rin rin_de_angelito && want "rin_de_angelito's card has 1 page" "$(pages "$t/card-rin.pdf")" 1
 
 # love_in_outer_space: its accompaniment is triads; no chord is left.
@@ -186,15 +218,21 @@ mellophonePart = #(define-music-function (m) (ly:music?) #{ \\transpose f c' \$m
 
 # vis_hora m1-4: the cue-size "accomp. simile" stabs under the melody are
 # taken out (hf7y on #21: "the lower voice of << \\ >> passages still
-# prints (Vi's Hora m1-4)"). the_fool's section C, a CueVoice melody over
-# its hand-entered harmony, keeps both: Zach's open cue question.
+# prints (Vi's Hora m1-4)"). the_fool's section C prints the horn
+# countermelody alone, no cue notes (#25 item 5: "remove cue notes and
+# only show horn counter melody (stems up)").
 voices() { awk -F'\t' '$4=="note"{print $7}' "$t/$1.tsv" | sort -u | wc -l; }
 card vis vis_hora "#(define ly-events-file \"$t/vis.tsv\")
 \\include \"tools/ly-events.ily\"" && want "vis_hora: one voice prints" "$(voices vis)" 1
 card fool the_fool "#(define ly-events-file \"$t/fool.tsv\")
 \\include \"tools/ly-events.ily\"" \
-  && { n=$(voices fool); [ "$n" -gt 1 ] && ok "the_fool keeps its $n voices (open cue question)" \
-       || bad "the_fool prints $n voice, want its cue and harmony both"; }
+  && want "the_fool: no CueVoice note" "$(awk -F'\t' '$4=="note" && $7 ~ /^CueVoice:/' "$t/fool.tsv" | wc -l)" 0
+# santa_sangre: the melody is no cue above the part, but a staff of its
+# own below it (#25 item 6), so the card has two staves, one voice each
+card santa santa_sangre "#(define ly-events-file \"$t/santa.tsv\")
+\\include \"tools/ly-events.ily\"" \
+  && want "santa_sangre: two voices, neither a CueVoice" \
+       "$(voices santa) $(awk -F'\t' '$7 ~ /^CueVoice:/' "$t/santa.tsv" | wc -l)" "2 0"
 
 [ $fail = 0 ] && echo "ddlm-player: all ok"
 exit $fail

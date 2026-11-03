@@ -37,6 +37,13 @@
 #(define mellophone-fingering-on
    (if (defined? 'mellophoneFingering) mellophoneFingering #t))
 
+% The fingering's size, grace notes included (#25 item 9, Zach 2026-11-02:
+% "grace note fingerings are too small"). LilyPond's graceSettings push
+% Fingering.font-size to -8 inside a grace, and \voiceOne & co. set
+% graceSettings again, so Mellophone_engraver sets this on each Fingering
+% grob as it is made instead.
+#(define mellophone-fingering-size -4)
+
 % semitones above c' (written C4) of the open notes, without Bb5
 #(define mellophone-open '(0 7 12 16 19 24))
 #(define mellophone-valves #("0" "2" "1" "12" "23" "13" "123"))
@@ -124,6 +131,9 @@
                   (ly:warning "mellophone: ~a, m~a: written ~a is outside ~a"
                               song bar (mellophone-pitch-name p)
                               mellophone-range-name)))))))
+    (acknowledgers
+     ((finger-interface engraver grob source)
+      (ly:grob-set-property! grob 'font-size mellophone-fingering-size)))
     ((finalize engraver) (mellophone-write-report))))
 
 #(define (mellophone-key p)
@@ -154,6 +164,8 @@
                    (mellophone-name . ,(mellophone-pitch-name p))
                    (mellophone-song . ,(mellophone-song event))
                    (mellophone-bar . ,(ly:context-property context 'currentBarNumber "?"))
+                   (mellophone-grace . ,(not (zero? (ly:moment-grace
+                                                     (ly:context-current-moment context)))))
                    (origin . ,(ly:event-property event 'origin))))
                 (ly:event-property event 'articulations '()))))))
 
@@ -207,7 +219,10 @@ the same staff, in the same system already shows."
                                       (ly:event-property cause 'mellophone-song)
                                       (ly:event-property cause 'mellophone-bar)
                                       (ly:event-property cause 'mellophone-name)
-                                      (ly:event-property cause 'text)))))))))))
+                                      (ly:event-property cause 'text)
+                                      (ly:grob-property grob 'font-size)
+                                      (if (ly:event-property cause 'mellophone-grace #f)
+                                          "grace" "note")))))))))))
 
 \layout {
   \context {
@@ -220,6 +235,6 @@ the same staff, in the same system already shows."
     \override Fingering.after-line-breaking = #mellophone-first-in-system
     \override Fingering.direction = #UP
     \override Fingering.font-encoding = #'latin1
-    \override Fingering.font-size = #-4
+    \override Fingering.font-size = #mellophone-fingering-size
   }
 }

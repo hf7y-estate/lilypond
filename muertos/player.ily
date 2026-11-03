@@ -24,7 +24,7 @@
 %        Notes inside a phrase all move together, so a new leap can only
 %        appear at a join. Each part of a << >> is its own line; the lower
 %        voices of << ... \\ ... >> are not fitted (the player takes the
-%        top voice, item 7) and stay as written.
+%        top voice, item 7); step 5 takes most of them out.
 %   4. The tuba fallback (#8's "harmonic floor", the last rung of the
 %      ladder before item 2's "stays as it is"): a note the phrase shift
 %      still cannot place is replaced by the simultaneous note of the
@@ -32,6 +32,17 @@
 %      (item 7 takes the top voice only), moved by whole octaves to the
 %      octave nearest its own that fits C4-C6. This only reaches the
 %      notes a shift can't fix; everything else is untouched.
+%   5. Lower voices out (#8 item 7, "one plain melody line"; hf7y on #21,
+%      2026-11-03: "the lower voice of << \\ >> passages still prints
+%      (Vi's Hora m1-4); per rule 7 only the top voice should"): after the
+%      fit and the tuba fallback have read it, the voice after \\ in
+%      << top \\ lower >> is taken out of the part, unless the top voice
+%      is cue-size (\new CueVoice, or \magnifyMusic below 1). That case
+%      (the_fool section C, la_llorona's intro, love_in_outer_space,
+%      santa_sangre) is Zach's open question on #8, "whether a cue-size
+%      voice is ever the part", and stays as written until he answers it.
+%      What is in the lower voice goes with it: its notes, rests, text
+%      and any \bar or \mark written only there.
 %   Not here yet (#8 item 8's borrow from another INSTRUMENT'S part --
 %   trumpet/trombone/tuba -- and #8 item 10's beat skeleton): both need
 %   the other instruments' PDFs, which live only at
@@ -155,6 +166,46 @@ player doesn't play (item 7)."
      (cond ((null? els) '())
            ((eq? (ly:music-property (car els) 'name) 'VoiceSeparator) (cdr els))
            (else (loop (cdr els))))))
+
+% \magnifyMusic leaves nothing in the music that says it was there (it
+% expands to ApplyContext procedures), so it is wrapped to mark its
+% result with the factor: player-cue-size? reads the mark. The engraving
+% is LilyPond's own, unchanged. It must come before the songs are read
+% (Book.ly includes mellophone.ily, and so this file, before Songs.ily).
+#(define player-lilypond-magnify (ly:music-function-extract magnifyMusic))
+magnifyMusic =
+#(define-music-function (mag music) (positive? ly:music?)
+   "LilyPond's \\magnifyMusic, marked for player-cue-size?."
+   (let ((m (player-lilypond-magnify mag music)))
+     (ly:music-set-property! m 'player-magnify mag)
+     m))
+
+#(define (player-cue-size? m)
+   "Whether M has a cue-size voice in it: a \\new CueVoice, or music under
+\\magnifyMusic below 1."
+   (or (and (eq? (ly:music-property m 'name) 'ContextSpeccedMusic)
+            (eq? (ly:music-property m 'context-type) 'CueVoice))
+       (let ((mag (ly:music-property m 'player-magnify #f)))
+         (and (number? mag) (< mag 1)))
+       (let ((e (ly:music-property m 'element #f)))
+         (and (ly:music? e) (player-cue-size? e)))
+       (any player-cue-size? (ly:music-property m 'elements '()))))
+
+#(define (player-drop-lower! m)
+   "Item 7, step 5: in every << top \\\\ lower >> of M, take out the
+VoiceSeparator and every voice after it, unless TOP is cue-size (Zach's
+open question on #8). Chord symbols and lyrics are not looked into."
+   (cond
+    ((player-not-notes? m) #t)
+    (else
+     (let ((els (ly:music-property m 'elements '())))
+       (if (and (eq? (ly:music-property m 'name) 'SimultaneousMusic)
+                (pair? (player-after-separator els))
+                (not (any player-cue-size? (player-top-voice els))))
+           (ly:music-set-property! m 'elements (player-top-voice els)))
+       (let ((e (ly:music-property m 'element #f)))
+         (if (ly:music? e) (player-drop-lower! e)))
+       (for-each player-drop-lower! (ly:music-property m 'elements '()))))))
 
 #(define (player-shadow-line elements pos)
    "The flat, time-ordered list of note groups ((pos . notes) ...) of
@@ -458,6 +509,7 @@ their top note, each phrase in the player's range."
        (cons 'rhythmic-event (ly:parser-lookup '$chord-repeat-events)) m))
      (player-top-notes! m)
      (for-each (lambda (p) (player-fit-line! (car p) (cdr p))) (player-lines m))
+     (player-drop-lower! m)
      m))
 
 %% ---------------------------------------------------------------- report

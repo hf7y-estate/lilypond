@@ -53,8 +53,11 @@ form = {
 			s2.*7 | s2 }
 	>> \break
 	\mark #3
+	% section C: the horn countermelody alone, stems up; the melody's cue
+	% notes are gone (#25 item 5, Zach 2026-11-02: "For the Fool C section,
+	% remove cue notes and only show horn counter melody (stems up)")
 	<<
-		{ \c-harmony }
+		\new Voice { \stemUp \c-harmony }
 		{
 			\partial 4 s4 | \bar "||"
 			s2.*8 |

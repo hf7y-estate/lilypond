@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
-# The lyre cards (hf7y-estate/lilypond#21): muertos/build.sh builds the
-# book as 5.5x4.25in cards and imposes them 2-up on the top half of
-# landscape letter, bottom half blank (Zach, 2026-11-02: "quarter sheets
-# but printed 2 up with the bottom half blank? that's better so I have
-# room for my lyre to clip"). Reads the built PDFs back with gs: every card
-# 396x306pt, every sheet 792x612pt with nothing drawn below y=306, two
-# cards a sheet. Injected: a card with more systems than it holds, the old
-# 5.5x8.5in paper, and the old full-sheet imposition must each be red; and
-# build.sh's page-size check must say BLIND and refuse a PDF it cannot read.
+# The lyre cards (hf7y-estate/lilypond#21, #25): muertos/build.sh builds
+# the book as 5.5x6in cards (Zach, 2026-11-02: "treat the page height as 6
+# inches including margin") and imposes them 2-up at the top of landscape
+# letter, the bottom 2.5in blank for the lyre clip (#21: "room for my lyre
+# to clip"). Reads the built PDFs back with gs: every card 396x432pt,
+# every sheet 792x612pt with nothing drawn below the cut at y=180, two
+# cards a sheet; one card a song but Zeina, which may take two (#25:
+# "generally pieces on 2 pages now should aim for 1 page"); a 2nd card
+# carries the song's name ("print small title where possible on 2nd
+# pages"). Injected: a card with more systems than it holds, the old
+# 5.5x8.5in paper, the cards on the bottom of the sheet, a card that starts
+# away from a rehearsal mark, and a 2nd card without the title must each
+# be red; and build.sh's page-size check must say BLIND and refuse a PDF it
+# cannot read.
 # Needs gs. Without lilypond on PATH it checks only that last part and says
 # SKIP for the build: LilyPond 2.24 is on the dexter host, not in the agent
 # image.
@@ -28,7 +33,7 @@ want() {  # want WHAT GOT EXPECTED
 
 # ---- build.sh's card_size fails closed (needs gs only). An empty file and
 # a PDF with no pages both read back as "0 0" with gs exiting 0, so a check
-# that only compares "pages" with "pages that are 396x306" passes them; a
+# that only compares "pages" with "pages that are 396x432" passes them; a
 # missing file and junk must be refused too. Each must say BLIND.
 sed -n '/^card_size() {/,/^}/p' "$m/build.sh" >"$t/card_size.sh"
 grep -q '^card_size() {' "$t/card_size.sh" || bad "no card_size() in build.sh"
@@ -52,6 +57,44 @@ if (work=$(mktemp -d -p "$t"); out=$(mktemp -d -p "$t"); here=$m; . "$t/ly.sh"
 elif grep -q 'BLIND' "$t/ly-gone.out"; then ok "ly(): an unreadable LilyPond log is BLIND and refused"
 else bad "ly() refused an unreadable log but did not say BLIND: $(tail -1 "$t/ly-gone.out")"; fi
 
+# ---- ly()'s card-break guards (#25 item 4: "a 2-page song breaks at a
+# rehearsal-section start, never inside one"), against a stub lilypond that
+# writes a PDF of N blank pages and the layout report it is handed. The
+# adversary is a song whose 2nd card starts inside a section, and a page
+# break player.ily never logged. Each must be refused; the honest one passes.
+sed -n '/^pdf_pages() {/,/^}/p' "$m/build.sh" >>"$t/ly.sh"
+grep -q '^pdf_pages() {' "$t/ly.sh" || bad "no pdf_pages() in build.sh"
+lyrun() {  # lyrun NAME PAGES REPORT: ly() on the stub; prints ly()'s stderr, returns its rc
+  local np=$2 report=$3
+  (work=$(mktemp -d -p "$t"); out=$(mktemp -d -p "$t"); here=$m; . "$t/ly.sh"
+   lilypond() {
+     gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -dDEVICEWIDTHPOINTS=396 -dDEVICEHEIGHTPOINTS=432 \
+       -o "$work/x.pdf" -c "$(for _ in $(seq "$np"); do printf 'showpage '; done)" >/dev/null 2>&1
+     [ "$report" = NONE ] || printf '%b' "$report" >"$work/x-layout.txt"
+   }
+   ly x /dev/null) >"$t/lyrun-$1.out" 2>&1
+}
+S='system\tzeina\t13\t14.0\n'
+if lyrun honest 2 "${S}page\tzeina\t2\t7\t13\t25\tmark\n"; then ok "ly(): a 2nd card at a mark, 2 pages, passes"
+else bad "ly() refused a 2nd card at a mark: $(tail -1 "$t/lyrun-honest.out")"; fi
+if lyrun offmark 2 "${S}page\tzeina\t2\t7\t13\t29\tnone\n"; then
+  bad "ly() passed a 2nd card that starts inside a section"
+elif grep -q 'does not start at a rehearsal mark' "$t/lyrun-offmark.out"; then ok "ly(): a 2nd card inside a section is refused"
+else bad "ly() refused the off-mark card for another reason: $(tail -1 "$t/lyrun-offmark.out")"; fi
+if lyrun unlogged 2 "$S"; then
+  bad "ly() passed a 2-page song whose report logs no page break"
+elif grep -q 'the layout report accounts for 1' "$t/lyrun-unlogged.out"; then ok "ly(): a page break player.ily did not log is refused"
+else bad "ly() refused the unlogged break for another reason: $(tail -1 "$t/lyrun-unlogged.out")"; fi
+if lyrun noreport 1 NONE; then bad "ly() passed a build with no layout report"
+elif grep -q 'BLIND' "$t/lyrun-noreport.out"; then ok "ly(): no layout report is BLIND and refused"
+else bad "ly() refused no report but did not say BLIND: $(tail -1 "$t/lyrun-noreport.out")"; fi
+for f in empty junk zero missing; do
+  if (work=$t; . "$t/ly.sh"; pdf_pages "$t/$f.pdf") >"$t/pp-$f.out" 2>&1; then
+    bad "pdf_pages counted an unreadable PDF ($f): $(cat "$t/pp-$f.out")"
+  elif grep -q 'BLIND' "$t/pp-$f.out"; then ok "pdf_pages: $f PDF is BLIND and refused"
+  else bad "pdf_pages refused $f but did not say BLIND: $(tail -1 "$t/pp-$f.out")"; fi
+done
+
 if ! command -v lilypond >/dev/null; then
   echo "SKIP: no lilypond on PATH; the build is not checked"
   [ $fail = 0 ] && echo "ddlm-cards: all ok (card_size only)"
@@ -73,19 +116,28 @@ if bash "$m/build.sh" "$t/out" >"$t/build.out" 2>&1; then
   ok "build.sh: $(tail -1 "$t/build.out")"
   for b in mellophone mellophone-nochords; do
     cards="$t/out/$b-cards.pdf" letter="$t/out/$b-letter.pdf"
-    want "$b-cards: every card 5.5x4.25in" "$(sizes "$cards")" "396x306 "
+    want "$b-cards: every card 5.5x6in" "$(sizes "$cards")" "396x432 "
     want "$b-letter: every sheet landscape letter" "$(sizes "$letter")" "792x612 "
     n=$(pages "$cards")
     want "$b-letter: two cards a sheet ($n cards)" "$(pages "$letter")" $(( (n + 1) / 2 ))
     low=$(lowest "$letter")
-    [ -n "$low" ] && [ "$low" -ge 305 ] && ok "$b-letter: nothing below y=$low (bottom half blank)" \
-      || bad "$b-letter: drawn down to y=[$low], want nothing below 305"
+    # the cut line at y=180 is 0.4pt wide: its bbox reaches 179.8
+    [ -n "$low" ] && [ "$low" -ge 179 ] && ok "$b-letter: nothing below y=$low (bottom 2.5in blank)" \
+      || bad "$b-letter: drawn down to y=[$low], want nothing below 179"
   done
   for f in "$t"/out/*.pdf; do
     case $f in *-letter.pdf) continue ;; esac
-    [ "$(sizes "$f")" = "396x306 " ] || bad "$(basename "$f"): pages [$(sizes "$f")], want 396x306"
+    [ "$(sizes "$f")" = "396x432 " ] || bad "$(basename "$f"): pages [$(sizes "$f")], want 396x432"
   done
-  ok "every card PDF checked for 396x306"
+  ok "every card PDF checked for 396x432"
+  # one card a song; zeina may take two
+  [ "$(wc -l <"$t/out/songs.tsv")" -ge 14 ] || bad "songs.tsv lists $(wc -l <"$t/out/songs.tsv") songs, want 14"
+  long=$(cut -f1 "$t/out/songs.tsv" | while read -r f; do
+    n=$(pages "$t/out/$f"); [ "$n" = 1 ] || echo "$f=$n"; done | tr '\n' ' ')
+  case $long in
+    ''|'zeina.pdf=2 ') ok "every song on one card, but [${long% }]" ;;
+    *) bad "songs on more than one card: [$long], want at most zeina.pdf=2" ;;
+  esac
 else
   bad "build.sh failed:"; tail -20 "$t/build.out"
 fi
@@ -103,21 +155,51 @@ if [ $rc != 0 ] && grep -q 'has a card with more than fits on it' "$t/overfull.o
   ok "injected: one card per song is refused ($(grep -m1 -o 'compressing over-full page by [0-9.]* staff-spaces' "$t/overfull.out"))"
 else bad "injected: one card per song: rc=$rc"; tail -5 "$t/overfull.out"; fi
 
-inject oldpaper Phone.ly 's/#(set-paper-size "quarter")/#(set-paper-size "card")/'
+inject oldpaper Phone.ly 's/#(set-paper-size "lyre")/#(set-paper-size "card")/'
 rc=$?
-if [ $rc != 0 ] && grep -q 'has a page that is not 5.5x4.25in' "$t/oldpaper.out"; then
+if [ $rc != 0 ] && grep -q 'has a page that is not 5.5x6in' "$t/oldpaper.out"; then
   ok "injected: 5.5x8.5in paper is refused"
 else bad "injected: 5.5x8.5in paper: rc=$rc"; tail -5 "$t/oldpaper.out"; fi
 
-# ---- injected: the cards on the bottom half of the sheet
+# 4 systems a card: songs go on 3 cards, and some card then starts away
+# from a rehearsal mark, which build.sh refuses (#25 item 4)
+inject offmark player.ily 's/^#(define player-card-systems-first [0-9]*)$/#(define player-card-systems-first 4)/; s/^#(define player-card-systems [0-9]*)$/#(define player-card-systems 4)/'
+rc=$?
+if [ $rc != 0 ] && grep -q 'a card that does not start at a rehearsal mark' "$t/offmark.out"; then
+  ok "injected: a card starting away from a mark is refused ($(grep -m1 -o 'mark: [^;]*' "$t/offmark.out"))"
+else bad "injected: a card starting away from a mark: rc=$rc"; tail -5 "$t/offmark.out"; fi
+
+# ---- zeina's 2nd card carries its name; injected: Phone.ly's header out
+zeina2() {  # zeina2 DIR: the text on page 2 of zeina's card built from DIR
+  { sed '/^\\[A-Za-z_]*-card$/d' "$1/Book.ly"; echo '\zeina-card'; } >"$1/z2.ly"
+  lilypond -I "$1" -o "$1/z2" "$1/z2.ly" >"$1/z2.log" 2>&1 || { echo "LILYPOND FAILED"; return; }
+  gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=txtwrite -dFirstPage=2 -dLastPage=2 \
+    --permit-file-read="$1/z2.pdf" -o - "$1/z2.pdf" 2>/dev/null | tr -s ' ' | head -3
+}
+rm -rf "$t/z"; cp -r "$m" "$t/z"
+case $(zeina2 "$t/z") in
+  *Zeina*) ok "zeina's 2nd card carries its name" ;;
+  *) bad "zeina's 2nd card has no title: [$(zeina2 "$t/z" | head -1)]" ;;
+esac
+sed -i 's/\\fromproperty #.header:piece \\null/\\null \\null/' "$t/z/Phone.ly"
+if ! grep -q . <(diff "$m/Phone.ly" "$t/z/Phone.ly"); then bad "notitle: the sed changed nothing in Phone.ly"
+else
+  case $(zeina2 "$t/z") in
+    *Zeina*) bad "injected: no header, and zeina's 2nd card still reads Zeina" ;;
+    *) ok "injected: without the header the 2nd card has no title" ;;
+  esac
+fi
+
+# ---- injected: the cards on the bottom of the sheet
 if [ -f "$t/out/mellophone-cards.pdf" ]; then
-  sed 's/k 396 mul 306 translate/k 396 mul 0 translate/' "$m/letter-2up.ps" >"$t/bottom.ps"
+  sed 's/k 396 mul 180 translate/k 396 mul 0 translate/' "$m/letter-2up.ps" >"$t/bottom.ps"
+  grep -q . <(diff "$m/letter-2up.ps" "$t/bottom.ps") || bad "bottom: the sed changed nothing in letter-2up.ps"
   gs -q -dBATCH -dNOPAUSE -dSAFER --permit-file-read="$t/out/mellophone-cards.pdf" \
     -sDEVICE=pdfwrite -dDEVICEWIDTHPOINTS=792 -dDEVICEHEIGHTPOINTS=612 -dFIXEDMEDIA \
     -sIN="$t/out/mellophone-cards.pdf" -o "$t/bottom.pdf" "$t/bottom.ps"
   low=$(lowest "$t/bottom.pdf")
-  [ -n "$low" ] && [ "$low" -lt 305 ] && ok "injected: cards on the bottom half are seen (drawn down to y=$low)" \
-    || bad "injected: cards on the bottom half not seen: lowest y [$low]"
+  [ -n "$low" ] && [ "$low" -lt 179 ] && ok "injected: cards on the bottom of the sheet are seen (drawn down to y=$low)" \
+    || bad "injected: cards on the bottom of the sheet not seen: lowest y [$low]"
 fi
 
 [ $fail = 0 ] && echo "ddlm-cards: all ok"

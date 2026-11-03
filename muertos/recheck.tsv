@@ -5,6 +5,8 @@
 # e.g. 14,16 or 20-23) where a difference is known and said below. A
 # difference anywhere else is red, and so is an allowed measure that now
 # matches.
+# The Fool's section C prints only the horn countermelody (staff 3), not
+# the melody's cue notes (#25 item 5), so its voice 2 is that.
 # Voices not listed have no 2026 counterpart: la_llorona 2 (intro
 # accompaniment), santa_sangre 2 and vis_hora 2 (accompaniment),
 # gnossienne 2 (accomp. simile). zeina allows m14 and m16: pdf2ly does not carry a
@@ -14,8 +16,7 @@
 ana_dammi_falastini	Ana Dammi Falastini /Anna Dammi Falastini v3-Accompaniment_(F).pdf	1	1	-
 cairn_builder	Cairn Builder/Cairn Builder Concert.pdf	1	1	-
 the_fool	The Fool/The Fool (F).pdf	1	1	-
-the_fool	The Fool/The Fool (F).pdf	1	2	-
-the_fool	The Fool/The Fool (F).pdf	3	3	-
+the_fool	The Fool/The Fool (F).pdf	3	2	-
 gnossienne	Gnossienne No 1/Gnossienne No. 1-C_Instruments.pdf	1	1	20-23
 la_llorona	La Llorona/La Llorona F.pdf	1	1	-
 love_in_outer_space	Love In Outer Space/Love in Outer Space (F).pdf	1	1	-

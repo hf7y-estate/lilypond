@@ -96,11 +96,19 @@ love_in_outer_space-card = \bookpart {
 	\withChords \love_in_outer_space-chords \love_in_outer_space-accompaniment
 }
 
+% Santa Sangre: the mids part, then the melody (the 3rd time) as its own
+% labelled score below it, not as cues (Zach, 2026-11-02, #25 item 6).
 santa_sangre-card = \bookpart {
 	\santa_sangre-header
 	\removeWithTag #'phone
 	\mellophonePart
 	\withChords \santa_sangre-chords \santa_sangre-accompaniment
+	% the two scores are 4 + 4 systems (the -layout.txt "system" lines):
+	% on a card that holds fewer, the melody starts the next card, or
+	% LilyPond squeezes both onto one (build.sh refuses a compressed card)
+	$(if (< player-card-systems-first 8) pageBreak)
+	\removeWithTag #'phone
+	\mellophonePart \santa_sangre-melody
 }
 
 vis_hora-card = \bookpart {

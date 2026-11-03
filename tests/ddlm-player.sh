@@ -2,7 +2,8 @@
 # The player profile (muertos/player.ily, hf7y-estate/lilypond#8):
 # \mellophonePart's top-note reduction and whole-phrase range fit, the
 # fingering rules in muertos/mellophone.ily (top note only, spelled pitch,
-# "12" not "1-2") and the card layout, on small fixtures and on the book.
+# "12" not "1-2") and the card layout (5.5x4.25in cards, #21), on small
+# fixtures and on the book.
 # Reads the notes back with muertos/tools/ly-events.ily and the systems
 # and fingerings from the <output>-layout.txt player.ily writes.
 # Needs lilypond and gs. Without lilypond on PATH it says SKIP and checks
@@ -139,6 +140,13 @@ if ly book; then
   want "no fingering with a dash" "$(awk -F'\t' '$1=="finger" && $5 ~ /-/' "$L" | wc -l)" 0
   want "zeina's Db5 (m29) carries a fingering" \
     "$(awk -F'\t' '$1=="finger" && $2=="zeina" && $4=="Db5"{print $3, $5}' "$L")" "29 12"
+  # every card of every song holds at most 6 systems: from each song's
+  # "page" lines (a card's first system) and its system count
+  want "no card over 6 systems" "$(awk -F'\t' '
+      $1=="system" { n[$2]=$3 }
+      $1=="page"   { if ($4 - (($2 in last) ? last[$2] : 1) > 6) print $2, $4; last[$2]=$4 }
+      END { for (s in n) if (n[s] + 1 - ((s in last) ? last[s] : 1) > 6) print s, "end" }' "$L" | wc -l)" 0
+  want "no compressed card" "$(grep -c 'compress' "$t/book.log")" 0
 fi
 
 # One song's card, as build.sh builds it: Book.ly's preamble and the song.
@@ -147,7 +155,22 @@ card() {  # card NAME SONG [LINES]: LINES go before Songs.ily's \include
     printf '%s\n' "${3:-}" '\include "Songs.ily"' "\\$2-card"; } >"$t/$1.ly"
   ly "$1"
 }
-card card-zeina zeina && want "zeina's card has 2 pages" "$(pages "$t/card-zeina.pdf")" 2
+# A card holds 6 systems (player.ily's player-card-systems, measured on
+# 5.5x4.25in for #21); a song goes over as many cards as it needs, each
+# page break at a rehearsal mark, else at a rest, where one is in reach.
+breaks() { awk -F'\t' '$1=="page"{printf "%s@%s ", $6, $7}' "$1" | sed 's/ $//'; }
+if card card-zeina zeina; then
+  want "zeina's 14 systems go on 3 cards" "$(pages "$t/card-zeina.pdf")" 3
+  want "zeina's cards break at its marks (bar@kind)" "$(breaks "$t/card-zeina-layout.txt")" "25@mark 44@mark"
+fi
+# Injected: no break is better than another -> zeina splits evenly, off its marks.
+if card card-zeina-inj zeina '#(define player-card-breaks
+  (let ((f player-card-breaks)) (lambda (s kind) (f s (lambda (k) 2)))))'; then
+  got=$(breaks "$t/card-zeina-inj-layout.txt")
+  [ "$got" != "25@mark 44@mark" ] && ok "injected: without the mark/rest preference zeina breaks at [$got]" \
+    || bad "injected: without the preference zeina still breaks at [$got]"
+fi
+card card-voodoo voodoo && want "voodoo's card breaks at a rest (bar@kind)" "$(breaks "$t/card-voodoo-layout.txt")" "21@rest"
 card card-rin rin_de_angelito && want "rin_de_angelito's card has 1 page" "$(pages "$t/card-rin.pdf")" 1
 
 # love_in_outer_space: its accompaniment is triads; no chord is left.

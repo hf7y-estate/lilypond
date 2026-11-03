@@ -31,20 +31,26 @@
 #(set! paper-alist
   (cons '("card" . (cons (* 5.5 in) (* 8.5 in))) paper-alist))
 #(set! paper-alist
+  (cons '("quarter" . (cons (* 5.5 in) (* 4.25 in))) paper-alist))
+#(set! paper-alist
   (cons '("phone" . (cons (* 5.5 in) (* 2.5 in))) paper-alist))
 
 \paper {
-  % minimum-distance is the card's capacity (hf7y-estate/lilypond#8 item
-  % 6): systems are never packed closer than this, so a song with more
-  % systems than fit goes on to a second card (player.ily picks where).
-  % At 12, a card holds 12 systems (ana_dammi_falastini and the_fool have 11).
+  % The lyre cards (#21): 5.5x4.25in, systems packed from the top at
+  % 10 staff spaces (never under 9), no stretch. A card holds 6 systems
+  % (player.ily's player-card-systems, measured with this spacing); a
+  % song with more goes on to more cards, at the breaks player.ily picks.
   system-system-spacing =
-    #'((basic-distance . 6)
-       (minimum-distance . 12)
+    #'((basic-distance . 10)
+       (minimum-distance . 9)
        (padding . 1)
-       (stretchability . 12))
-  ragged-bottom = ##f
-  ragged-last-bottom = ##f
+       (stretchability . 0))
+  ragged-bottom = ##t
+  ragged-last-bottom = ##t
+  top-margin = 0.25\in
+  bottom-margin = 0.25\in
+  left-margin = 0.3\in
+  right-margin = 0.3\in
   % the card's spare height goes between the systems, not under the last
   last-bottom-spacing.stretchability = 0
   markup-system-spacing =
@@ -54,7 +60,7 @@
        (stretchability . 12))
 
   % #(set-paper-size "phone")
-  #(set-paper-size "card")
+  #(set-paper-size "quarter")
 
     scoreTitleMarkup = \markup {
       \fill-line {

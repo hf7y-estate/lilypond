@@ -160,8 +160,8 @@ if ly book; then
   want "la_llorona: m6's D6 is replaced from the accompaniment voice" \
     "$(awk -F'\t' '$1=="la_llorona"{print $4}' "$t/book-range.txt")" none
   want "no fingering with a dash" "$(awk -F'\t' '$1=="finger" && $5 ~ /-/' "$L" | wc -l)" 0
-  want "zeina's Db5 (m29) carries a fingering" \
-    "$(awk -F'\t' '$1=="finger" && $2=="zeina" && $4=="Db5"{print $3, $5}' "$L")" "29 12"
+  want "zeina's Db5 (m22, was m29 before the intro and B folds) carries a fingering" \
+    "$(awk -F'\t' '$1=="finger" && $2=="zeina" && $4=="Db5"{print $3, $5}' "$L")" "22 12"
   # every fingering in the book one size, and some of them on grace notes
   want "the book's fingerings, grace and note, are one size" \
     "$(awk -F'\t' '$1=="finger"{print $7, $6}' "$L" | sort -u | tr '\n' ' ')" "grace -4 note -4 "
@@ -190,14 +190,14 @@ card() {  # card NAME SONG [LINES]: LINES go before Songs.ily's \include
 # page break at a rehearsal mark, else at a rest, where one is in reach.
 breaks() { awk -F'\t' '$1=="page"{printf "%s@%s ", $6, $7}' "$1" | sed 's/ $//'; }
 if card card-zeina zeina; then
-  want "zeina's 13 systems go on 2 cards" "$(pages "$t/card-zeina.pdf")" 2
-  want "zeina's 2nd card starts at its mark C (bar@kind)" "$(breaks "$t/card-zeina-layout.txt")" "25@mark"
+  want "zeina's 12 systems go on 2 cards" "$(pages "$t/card-zeina.pdf")" 2
+  want "zeina's 2nd card starts at a rehearsal mark (bar@kind)" "$(breaks "$t/card-zeina-layout.txt")" "37@mark"
 fi
 # Injected: marks are the worst place to break -> zeina breaks off its marks.
 if card card-zeina-inj zeina '#(define player-card-breaks
   (let ((f player-card-breaks)) (lambda (s kind) (f s (lambda (k) (- 2 (kind k)))))))'; then
   got=$(breaks "$t/card-zeina-inj-layout.txt")
-  [ "$got" != "25@mark" ] && ok "injected: with the preference reversed zeina breaks at [$got]" \
+  [ "$got" != "37@mark" ] && ok "injected: with the preference reversed zeina breaks at [$got]" \
     || bad "injected: with the preference reversed zeina still breaks at [$got]"
 fi
 for s in voodoo vis_hora le_chant_des_partisans the_fool la_llorona; do
@@ -226,7 +226,9 @@ card vis vis_hora "#(define ly-events-file \"$t/vis.tsv\")
 \\include \"tools/ly-events.ily\"" && want "vis_hora: one voice prints" "$(voices vis)" 1
 card fool the_fool "#(define ly-events-file \"$t/fool.tsv\")
 \\include \"tools/ly-events.ily\"" \
-  && want "the_fool: no CueVoice note" "$(awk -F'\t' '$4=="note" && $7 ~ /^CueVoice:/' "$t/fool.tsv" | wc -l)" 0
+  && want "the_fool: no CueVoice note" "$(awk -F'\t' '$4=="note" && $7 ~ /^CueVoice:/' "$t/fool.tsv" | wc -l)" 0 \
+  && want "the_fool: section C is the horn countermelody alone, stems up (#25, Zach 2026-11-02: Mids)" \
+    "$(grep -c 'new Voice { .stemUp .c-harmony }' "$m/the_fool.ly")" 1
 
 [ $fail = 0 ] && echo "ddlm-player: all ok"
 exit $fail

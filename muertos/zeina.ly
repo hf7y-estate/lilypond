@@ -13,7 +13,7 @@ zeina-header = \header {
 
 zeina-music = \relative d {
     \clef "treble" \numericTimeSignature\time 4/4 \key bes \major
-    \repeat volta 2 {
+    \repeat volta 4 {
         | % 1
         \tempo 4=180 \mark \markup { \box { Intro } }
         d4 -. es4 -. c4 -. es4 -. | % 2
@@ -21,15 +21,11 @@ zeina-music = \relative d {
         a8 -. | % 3
         d4 -. es4 -. c4 -. es4 -. | % 4
         d4 -. r4 r2 | % 5
-        d4 -. es4 -. c4 -. es4 -. | % 6
-        r8 d8 -. r8 c8 -. r8 bes8 -. r8
-        a8 -. | % 7
-        d4 -. es4 -. c4 -. es4 -. | % 8
-        d4 -. r4 r2 }
-    \repeat volta 4 {
+        }
+    \repeat volta 2 {
         | % 9
         \mark \markup { \musicglyph "scripts.segno" \box { A } }
-        d4 -. ^\markup "A Section repeats 4X" d4 -. d8 -. [ d8 -. ]
+        d4 -. d4 -. d8 -. [ d8 -. ]
         d4 -. | \barNumberCheck #10
         d4 -. d8 -. [ d8 -. ] d4 -.
         d8 -. [ d8 -. ] | % 11
@@ -45,17 +41,12 @@ zeina-music = \relative d {
     \grace { fis32 } g4. fis8 es8 [
     fis8 ] es4 | % 17
     R1 | % 18
+    \repeat volta 2 {
     r4 fis8 [ g8 ] a4 a8 [ g8 ]
-    | % 19
-    fis4 r4 r2 | \barNumberCheck #20
+    | fis4 r4 r2 |
     r4 es8 [ fis8 ] g8 [ a8 bes8
-    c8 ] | % 21
-    d4 r4 r2 | % 22
-    r4 fis,8 [ g8 ] a4 a8 [ g8 ]
-    | % 23
-    fis4 r4 r2 | % 24
-    r4 es8 [ fis8 ] g8 [ a8 bes8
-    c8 ] | % 25
+    c8 ] }
+    \alternative { { d4 r4 r2 | } { \once \omit Staff.BarLine s1*0 } }
     \mark \markup { \box { C } }
     d4 c4 b4 g8 [ c8 ~ ] | % 26
     c8 [ bes8 ] a4 fis4 d4 | % 27
@@ -66,29 +57,22 @@ zeina-music = \relative d {
     c,4 es2 c4 | % 32
     d4 d'16 ( [ ^ "Only when repeating" es16
     d16 c16 ] d4 c4 ) \textEndMark "D.S." \bar "|."
-    % D and E: 1st and 2nd endings as in Zeina_v2-Accompaniment_(F).pdf
-    % (#25 item 11); the printed bars are the same as before
     \repeat volta 2 {
         \mark \markup { \box { D } } \tempo 4=220
-        d,4 r4 fis4 es4 | d4 r4 g4 fis4 | es4 r4 a4 g4 |
-        fis4 es4 d4 c4 | d4 r4 fis4 es4 |
-        \alternative {
-            { d4 r4 g4 fis4 | es4 r4 bes'4 g4 | a4 r4 r2 }
-            { d,4 r4 fis4 g4 | a4 fis4 es4 fis4 | d4 r4 r2 \bar "|." }
-        }
+        d,4 r4 fis4 es4 | d4 r4 g4 fis4 | es4 r4 a4 g4 | fis4 es4 d4 c4 | d4 r4 fis4 es4 | }
+    \alternative {
+      { d4 r4 g4 fis4 | es4 r4 bes'4 g4 | a4 r4 r2 | }
+      { d,4 r4 fis4 g4 | a4 fis4 es4 fis4 | d4 r4 r2 \bar "|." }
     }
     \repeat volta 2 {
         \mark \markup { \box { E } }
-        r4. d8 -. r4 d8 -. r8 | r4. c8 -. r4 c8 -. r8 |
-        r4. c8 -. r4 c8 -. r8 | r4. bes8 -. r4 bes8 -. r8 |
-        r4. bes8 -. r4 bes8 -. r8 | r4. a8 -. r4 a8 -. r8 |
-        \alternative {
-            { r4. a8 -. r4 a8 -. r8 | r4. g8 -. r4 g8 -. r8 }
-            { a'4 ^\markup { \bold "rit." } g4 fis4 es4 | d4
-              es8 [ fis8 ] es8 [ d8 ] c4 \textEndMark "D.S." \bar "|." }
-        }
+        r4. d8 -. r4 d8 -. r8 | r4. c8 -. r4 c8 -. r8 | r4. c8 -. r4 c8 -. r8 |
+        r4. bes8 -. r4 bes8 -. r8 | r4. bes8 -. r4 bes8 -. r8 | r4. a8 -. r4 a8 -. r8 | }
+    \alternative {
+      { r4. a8 -. r4 a8 -. r8 | r4. g8 -. r4 g8 -. r8 | }
+      { a'4 g4 fis4 es4 | d4 es8 [ fis8 ] es8 [ d8 ] c4 \textEndMark "D.S." \bar "|." }
     }
-    }
+}
 
 zeina-accompaniment = {
     \new Staff {

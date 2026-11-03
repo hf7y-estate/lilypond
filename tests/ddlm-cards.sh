@@ -71,7 +71,7 @@ lowest() {  # the lowest y any page of $1 draws at, rounded down, in pt
 # ---- the build
 if bash "$m/build.sh" "$t/out" >"$t/build.out" 2>&1; then
   ok "build.sh: $(tail -1 "$t/build.out")"
-  for b in mellophone mellophone-chords; do
+  for b in mellophone mellophone-nochords; do
     cards="$t/out/$b-cards.pdf" letter="$t/out/$b-letter.pdf"
     want "$b-cards: every card 5.5x4.25in" "$(sizes "$cards")" "396x306 "
     want "$b-letter: every sheet landscape letter" "$(sizes "$letter")" "792x612 "

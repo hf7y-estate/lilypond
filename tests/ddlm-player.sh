@@ -161,15 +161,76 @@ card() {  # card NAME SONG [LINES]: LINES go before Songs.ily's \include
 breaks() { awk -F'\t' '$1=="page"{printf "%s@%s ", $6, $7}' "$1" | sed 's/ $//'; }
 if card card-zeina zeina; then
   want "zeina's 12 systems go on 2 cards" "$(pages "$t/card-zeina.pdf")" 2
-  want "zeina's cards break at its marks (bar@kind)" "$(breaks "$t/card-zeina-layout.txt")" "25@mark 44@mark"
+  want "zeina's cards break at its marks (bar@kind)" "$(breaks "$t/card-zeina-layout.txt")" "26@mark"
 fi
-# Injected: no break is better than another -> zeina splits evenly, off its marks.
-if card card-zeina-inj zeina '#(define player-card-breaks
+# zeina's mark is its even split since the #25 folds; ana_dammi_falastini's
+# B mark is not. Injected: no break is better than another -> ana splits
+# evenly, off its mark.
+card card-ana ana_dammi_falastini \
+  && want "ana_dammi_falastini's card breaks at its mark (bar@kind)" "$(breaks "$t/card-ana-layout.txt")" "17@mark"
+if card card-ana-inj ana_dammi_falastini '#(define player-card-breaks
   (let ((f player-card-breaks)) (lambda (s kind) (f s (lambda (k) 2)))))'; then
-  got=$(breaks "$t/card-zeina-inj-layout.txt")
-  [ "$got" != "25@mark 44@mark" ] && ok "injected: without the mark/rest preference zeina breaks at [$got]" \
-    || bad "injected: without the preference zeina still breaks at [$got]"
+  got=$(breaks "$t/card-ana-inj-layout.txt")
+  [ "$got" != "17@mark" ] && ok "injected: without the mark/rest preference ana breaks at [$got]" \
+    || bad "injected: without the preference ana still breaks at [$got]"
 fi
+# Every bar of every song is on its card, and no system is one bar unless
+# the song is (Zach, 2026-11-02, of Cairn Builder: "the last print had a
+# system break error": its \cueBox, mid-system, pushed bars 8-10 off the
+# card). Each card again, its bar numbers printed as [BAR<n>] on every bar;
+# the bars wanted are those a note or rest ly-events.ily logs sounds in.
+cat >"$t/bars.py" <<'EOF'
+import math, re, sys
+from fractions import Fraction as F
+import pymupdf as fitz
+pdf, tsv, song = sys.argv[1:4]
+want = set()  # every bar a note or rest sounds in (R2.*3 and c1. hold on)
+for f in (l.rstrip("\n").split("\t") for l in open(tsv)):
+    if len(f) > 5 and f[3] in ("note", "rest", "mrest"):
+        b, pos, ml, ln = int(f[0]), F(f[1]), F(f[2]), F(f[5])
+        want.update(range(b, b + max(1, math.ceil((pos + ln) / ml))))
+got = {}  # bar -> (page, x) of its number, on the page only
+for p, page in enumerate(fitz.open(pdf)):
+    r = page.rect
+    for x0, y0, x1, y1, w, *_ in page.get_text("words"):
+        # [BAR<n>]: a word can run on into a mark or a fingering beside it
+        for n in re.findall(r"\[BAR(\d+)\]", w):
+            if r.x0 <= x0 and x1 <= r.x1 and r.y0 <= y0 and y1 <= r.y1:
+                got.setdefault(int(n), (p, x0))
+systems, prev = [], None  # a system starts where the page changes or x goes back
+for b in sorted(got):
+    if prev is None or got[b][0] != prev[0] or got[b][1] < prev[1]:
+        systems.append([])
+    systems[-1].append(b); prev = got[b]
+lone = [s[0] for s in systems if len(s) == 1] if len(got) > 1 else []
+# bars printed after the last one logged: the log was cut short (bars
+# inside it can have none: a \repeat percent bar prints no notes)
+print(song, len(want), len(set(got) & want),
+      " ".join(map(str, sorted(want - set(got)))) or "-",
+      " ".join(str(b) for b in sorted(got) if b > max(want, default=0)) or "-",
+      " ".join(map(str, lone)) or "-", sep="\t")
+EOF
+barlines='\layout { \context { \Score
+  barNumberVisibility = #all-bar-numbers-visible
+  \override BarNumber.break-visibility = #end-of-line-invisible
+  \override BarNumber.self-alignment-X = #LEFT
+  barNumberFormatter = #(lambda (n pos alt ctx) (make-simple-markup (format #f "[BAR~a]" n))) } }'
+songs=$(sed -n 's/^\\\([A-Za-z_]*\)-card$/\1/p' "$m/Book.ly")
+for s in $songs; do  # 4 at a time: 14 at once can run a small host out of memory
+  while [ "$(jobs -rp | wc -l)" -ge 4 ]; do wait -n; done
+  card "bars-$s" "$s" "#(define ly-events-file \"$t/bars-$s.tsv\")
+\\include \"tools/ly-events.ily\"
+$barlines" >"$t/bars-$s.out" &
+done
+wait
+for s in $songs; do
+  if [ ! -s "$t/bars-$s.pdf" ] || grep -q '^FAIL' "$t/bars-$s.out"; then
+    cat "$t/bars-$s.out"; bad "$s: no card to count bars on"; continue
+  fi
+  IFS=$'\t' read -r _ nwant nprint missing extra lone < <(python3 -I "$t/bars.py" "$t/bars-$s.pdf" "$t/bars-$s.tsv" "$s")
+  want "$s: bars on the card (of $nwant), missing, past the log" "$nprint $missing $extra" "$nwant - -"
+  want "$s: one-bar systems" "$lone" "-"
+done
 card card-voodoo voodoo && want "voodoo's card breaks at a rest (bar@kind)" "$(breaks "$t/card-voodoo-layout.txt")" "21@rest"
 card card-rin rin_de_angelito && want "rin_de_angelito's card has 1 page" "$(pages "$t/card-rin.pdf")" 1
 

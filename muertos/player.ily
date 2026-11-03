@@ -56,9 +56,12 @@
 % a compressed multi-measure rest prints as one bar) or its onsets / 8 if
 % more, and a system takes bars while their cost is <= 4. A rehearsal
 % mark starts a new system once the current one has 2 bars; no system
-% has fewer than 2 bars unless the song does. A song goes on as many
-% 5.5x4.25in cards (#21) as its systems need at player-card-systems a card
-% (player-card-systems-first on the card with the title), and
+% has fewer than 2 bars unless the song does, counted to the next mark
+% (a system that would leave one bar before it takes that bar). An end
+% mark (\textEndMark: \cueBox, "×4", "D.S.") always ends its system.
+% A song goes on as many 5.5x4.25in cards (#21) as its systems need at
+% player-card-systems a card (player-card-systems-first on the card with
+% the title), and
 % player-card-breaks puts each page break at a system start that keeps
 % every card within that: at a rehearsal mark if one is in reach, else at
 % a rest (one ends at the bar line, or the bar opens with one), else the
@@ -615,8 +618,9 @@ their top note, each phrase in the player's range."
              (loop (1+ j) best (cons best acc)))))))
 
 #(define (Player_layout_engraver context)
-   (let ((bars '())        ; newest first: #(column start-moment onsets-before mark? rest?)
+   (let ((bars '())        ; newest first: #(column start-moment onsets-before mark? rest? after-end-mark?)
          (mark #f)
+         (end-mark #f)     ; a \textEndMark (\cueBox, "×4", "D.S.") since the last bar start
          (rest-now #f)     ; a rest starts at this moment, and no note does
          (note-now #f)
          (rest-until #f)   ; where the latest rest heard ends
@@ -627,6 +631,9 @@ their top note, each phrase in the player's range."
        (set! mark #f) (set! rest-now #f) (set! note-now #f))
       (listeners
        ((mark-event engraver event) (set! mark #t))
+       ((text-mark-event engraver event)
+        (if (eqv? (ly:event-property event 'horizontal-direction CENTER) LEFT)
+            (set! end-mark #t)))
        ((note-event engraver event)
         (set! note-now #t)
         (if (not song) (set! song (player-event-song event))))
@@ -655,17 +662,23 @@ their top note, each phrase in the player's range."
                   (not (and (pair? bars)
                             (equal? (ly:moment-main now)
                                     (ly:moment-main (vector-ref (car bars) 1))))))
-             (set! bars (cons (vector col now player-onsets mark rest) bars)))
+             (set! bars (cons (vector col now player-onsets mark rest #f) bars)))
          (if (and (pair? bars)
                   (equal? (ly:moment-main now) (ly:moment-main (vector-ref (car bars) 1))))
              (begin
                (if mark (vector-set! (car bars) 3 #t))
-               (if rest (vector-set! (car bars) 4 #t))))))
+               (if rest (vector-set! (car bars) 4 #t))
+               ;; an end mark (at this bar line, or earlier in the bar
+               ;; before) closes the system before this bar
+               (if end-mark (begin (vector-set! (car bars) 5 #t) (set! end-mark #f)))))))
       ((finalize engraver)
        (if player-layout-on
-       (let* ((bars (list->vector (reverse bars)))
+       (let* ((end (ly:moment-main (ly:context-current-moment context)))
+              ;; a mark or \cueBox after the last note opens no bar
+              (bars (list->vector
+                     (reverse (filter (lambda (b) (< (ly:moment-main (vector-ref b 1)) end))
+                                      bars))))
               (n (vector-length bars))
-              (end (ly:moment-main (ly:context-current-moment context)))
               (cost (lambda (i)
                       (let* ((start (ly:moment-main (vector-ref (vector-ref bars i) 1)))
                              (stop (if (< (1+ i) n)
@@ -676,18 +689,27 @@ their top note, each phrase in the player's range."
                                             player-onsets)
                                         (vector-ref (vector-ref bars i) 2))))
                         (max (min (- stop start) 1) (/ onsets 8)))))
+              (end-mark? (lambda (i) (vector-ref (vector-ref bars i) 5)))
+              (section? (lambda (i) (or (vector-ref (vector-ref bars i) 3) (end-mark? i))))
+              ;; the bars from i to the next section start (a mark or an end
+              ;; mark) after it, or to the song's end
+              (left (lambda (i) (let next ((j (1+ i)))
+                                  (if (or (>= j n) (section? j)) (- j i) (next (1+ j))))))
               (starts '()))
          ;; greedy systems: bar i starts a system when the current one is full
-         ;; or a mark starts here, and the current one has player-min-bars
+         ;; or a mark starts here, the current one has player-min-bars and so
+         ;; will the new one before the next mark; and always after an end
+         ;; mark: it prints at the system's end (\cueBox is the line's whole
+         ;; width, and mid-system pushes the bars after it off the card)
          (let loop ((i 1) (used (if (> n 0) (cost 0) 0)) (count 1))
            (if (< i n)
                (let ((c (cost i))
-                     (enough (>= count player-min-bars))
-                     (left (- n i)))
-                 (if (and enough
-                          (>= left player-min-bars)
-                          (or (vector-ref (vector-ref bars i) 3)
-                              (> (+ used c) player-system-budget)))
+                     (enough (>= count player-min-bars)))
+                 (if (or (end-mark? i)
+                         (and enough
+                              (>= (left i) player-min-bars)
+                              (or (section? i)
+                                  (> (+ used c) player-system-budget))))
                      (begin (set! starts (cons i starts)) (loop (1+ i) c 1))
                      (loop (1+ i) (+ used c) (1+ count))))))
          (set! starts (reverse starts))

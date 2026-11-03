@@ -40,12 +40,23 @@ ly() {  # ly NAME FILE: compile FILE to $out/NAME.pdf, zero errors
 }
 
 card_size() {  # every page of $1 must be 396x306pt (5.5x4.25in)
-  local bad
-  bad=$(gs -q -dNODISPLAY -dSAFER --permit-file-read="$1" -sIN="$1" -c \
-    'IN (r) file runpdfbegin 1 1 pdfpagecount { pdfgetpage /MediaBox get
-     dup 2 get round cvi 396 ne exch 3 get round cvi 306 ne or { (bad) = } if }
-     for quit' 2>&1)
-  [ -z "$bad" ] || { echo "build.sh: $1 has a page that is not 5.5x4.25in" >&2; exit 1; }
+  # gs prints "<pages> <pages that are 396x306>". Anything else -- gs
+  # failing, an unreadable or missing PDF, no pages -- is BLIND and refused:
+  # a check that read nothing has passed nothing.
+  local got err
+  err="$work/card_size.err"
+  if ! got=$(gs -q -dNODISPLAY -dSAFER --permit-file-read="$1" -sIN="$1" -c \
+    'IN (r) file runpdfbegin pdfpagecount =only ( ) print
+     0 1 1 pdfpagecount { pdfgetpage /MediaBox get
+     dup 2 get round cvi 396 eq exch 3 get round cvi 306 eq and { 1 add } if }
+     for = quit' 2>"$err") || ! [[ $got =~ ^([1-9][0-9]*)\ ([0-9]+)$ ]]; then
+    cat "$err" >&2
+    echo "build.sh: BLIND: cannot read the pages of $1 (gs said [$got]); refusing" >&2
+    exit 1
+  fi
+  [ "${BASH_REMATCH[1]}" = "${BASH_REMATCH[2]}" ] || {
+    echo "build.sh: $1 has a page that is not 5.5x4.25in" \
+      "(${BASH_REMATCH[2]} of ${BASH_REMATCH[1]} are)" >&2; exit 1; }
 }
 
 ly mellophone-cards "$here/Book.ly"

@@ -6,14 +6,16 @@
 # room for my lyre to clip"). Reads the built PDFs back with gs: every card
 # 396x306pt, every sheet 792x612pt with nothing drawn below y=306, two
 # cards a sheet. Injected: a card with more systems than it holds, the old
-# 5.5x8.5in paper, and the old full-sheet imposition must each be red.
-# Needs lilypond and gs. Without lilypond on PATH it says SKIP and checks
-# nothing: LilyPond 2.24 is on the dexter host, not in the agent image.
+# 5.5x8.5in paper, and the old full-sheet imposition must each be red; and
+# build.sh's page-size check must say BLIND and refuse a PDF it cannot read.
+# Needs gs. Without lilypond on PATH it checks only that last part and says
+# SKIP for the build: LilyPond 2.24 is on the dexter host, not in the agent
+# image.
 set -uo pipefail
 root=$(git rev-parse --show-toplevel)
 m="$root/muertos"
-if ! command -v lilypond >/dev/null || ! command -v gs >/dev/null; then
-  echo "SKIP: no lilypond/gs on PATH; nothing checked"
+if ! command -v gs >/dev/null; then
+  echo "SKIP: no gs on PATH; nothing checked"
   exit 0
 fi
 t=$(mktemp -d); trap 'rm -rf "$t"' EXIT
@@ -23,6 +25,28 @@ bad() { echo "FAIL: $*"; fail=1; }
 want() {  # want WHAT GOT EXPECTED
   if [ "$2" = "$3" ]; then ok "$1: $2"; else bad "$1: got [$2], want [$3]"; fi
 }
+
+# ---- build.sh's card_size fails closed (needs gs only). An empty file and
+# a PDF with no pages both read back as "0 0" with gs exiting 0, so a check
+# that only compares "pages" with "pages that are 396x306" passes them; a
+# missing file and junk must be refused too. Each must say BLIND.
+sed -n '/^card_size() {/,/^}/p' "$m/build.sh" >"$t/card_size.sh"
+grep -q '^card_size() {' "$t/card_size.sh" || bad "no card_size() in build.sh"
+: >"$t/empty.pdf"
+echo junk >"$t/junk.pdf"
+printf '%%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%%%EOF\n' >"$t/zero.pdf"
+for f in empty junk zero missing; do
+  if (work=$t; . "$t/card_size.sh"; card_size "$t/$f.pdf") >"$t/cs-$f.out" 2>&1; then
+    bad "card_size passed an unreadable PDF ($f)"
+  elif grep -q 'BLIND' "$t/cs-$f.out"; then ok "card_size: $f PDF is BLIND and refused"
+  else bad "card_size refused $f but did not say BLIND: $(tail -1 "$t/cs-$f.out")"; fi
+done
+
+if ! command -v lilypond >/dev/null; then
+  echo "SKIP: no lilypond on PATH; the build is not checked"
+  [ $fail = 0 ] && echo "ddlm-cards: all ok (card_size only)"
+  exit $fail
+fi
 pages() { gs -q -dNODISPLAY -dSAFER --permit-file-read="$1" -c "($1) (r) file runpdfbegin pdfpagecount = quit"; }
 sizes() {  # the distinct page sizes of $1, "WxH" in pt
   gs -q -dNODISPLAY -dSAFER --permit-file-read="$1" -c "($1) (r) file runpdfbegin

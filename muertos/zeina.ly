@@ -26,10 +26,10 @@ zeina-music = \relative d {
         a8 -. | % 7
         d4 -. es4 -. c4 -. es4 -. | % 8
         d4 -. r4 r2 }
-    \repeat volta 2 {
+    \repeat volta 4 {
         | % 9
         \mark \markup { \musicglyph "scripts.segno" \box { A } }
-        d4 -. d4 -. d8 -. [ d8 -. ]
+        d4 -. ^\markup "A Section repeats 4X" d4 -. d8 -. [ d8 -. ]
         d4 -. | \barNumberCheck #10
         d4 -. d8 -. [ d8 -. ] d4 -.
         d8 -. [ d8 -. ] | % 11
@@ -66,25 +66,28 @@ zeina-music = \relative d {
     c,4 es2 c4 | % 32
     d4 d'16 ( [ ^ "Only when repeating" es16
     d16 c16 ] d4 c4 ) \textEndMark "D.S." \bar "|."
+    % D and E: 1st and 2nd endings as in Zeina_v2-Accompaniment_(F).pdf
+    % (#25 item 11); the printed bars are the same as before
     \repeat volta 2 {
         \mark \markup { \box { D } } \tempo 4=220
-        d,4 r4 fis4 es4 d4 r4 g4
-        fis4 es4 r4 a4 g4 fis4
-        es4 d4 c4 d4 r4 fis4
-        es4 d4 r4 g4 fis4 es4 r4
-        bes'4 g4 a4 r4 r2 }
-    d,4 r4 fis4 g4 a4 fis4
-    es4 fis4 d4 r4 r2 \bar "|."
+        d,4 r4 fis4 es4 | d4 r4 g4 fis4 | es4 r4 a4 g4 |
+        fis4 es4 d4 c4 | d4 r4 fis4 es4 |
+        \alternative {
+            { d4 r4 g4 fis4 | es4 r4 bes'4 g4 | a4 r4 r2 }
+            { d,4 r4 fis4 g4 | a4 fis4 es4 fis4 | d4 r4 r2 \bar "|." }
+        }
+    }
     \repeat volta 2 {
         \mark \markup { \box { E } }
-        r4. d8 -. r4 d8 -. r8 r4. c8 -. r4
-        c8 -. r8 r4. c8 -. r4 c8 -. r8 r4.
-        bes8 -. r4 bes8 -. r8 r4. bes8 -. r4
-        bes8 -. r8 r4. a8 -. r4 a8 -. r8 r4.
-        a8 -. r4 a8 -. r8 r4. g8 -. r4 g8
-        -. r8 }
-    a'4 g4 fis4 es4 d4
-    es8 [ fis8 ] es8 [ d8 ] c4 \textEndMark "D.S." \bar "|."
+        r4. d8 -. r4 d8 -. r8 | r4. c8 -. r4 c8 -. r8 |
+        r4. c8 -. r4 c8 -. r8 | r4. bes8 -. r4 bes8 -. r8 |
+        r4. bes8 -. r4 bes8 -. r8 | r4. a8 -. r4 a8 -. r8 |
+        \alternative {
+            { r4. a8 -. r4 a8 -. r8 | r4. g8 -. r4 g8 -. r8 }
+            { a'4 ^\markup { \bold "rit." } g4 fis4 es4 | d4
+              es8 [ fis8 ] es8 [ d8 ] c4 \textEndMark "D.S." \bar "|." }
+        }
+    }
     }
 
 zeina-accompaniment = {

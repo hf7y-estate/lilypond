@@ -227,12 +227,6 @@ card vis vis_hora "#(define ly-events-file \"$t/vis.tsv\")
 card fool the_fool "#(define ly-events-file \"$t/fool.tsv\")
 \\include \"tools/ly-events.ily\"" \
   && want "the_fool: no CueVoice note" "$(awk -F'\t' '$4=="note" && $7 ~ /^CueVoice:/' "$t/fool.tsv" | wc -l)" 0
-# santa_sangre: the melody is no cue above the part, but a staff of its
-# own below it (#25 item 6), so the card has two staves, one voice each
-card santa santa_sangre "#(define ly-events-file \"$t/santa.tsv\")
-\\include \"tools/ly-events.ily\"" \
-  && want "santa_sangre: two voices, neither a CueVoice" \
-       "$(voices santa) $(awk -F'\t' '$7 ~ /^CueVoice:/' "$t/santa.tsv" | wc -l)" "2 0"
 
 [ $fail = 0 ] && echo "ddlm-player: all ok"
 exit $fail

@@ -2,7 +2,8 @@
 # Chord symbols from the source PDFs' text layer (#6). muertos/chords.sh
 # reads each source PDF's chords with muertos/tools/pdfchords.py, places
 # them on the card and is red when a committed chords/<song>.ily is not
-# what the PDF says; build.sh builds the book with and without them.
+# what the PDF says; build.sh builds the book with them (the main one,
+# mellophone-*.pdf) and without (mellophone-nochords-*.pdf).
 # This test needs no source PDFs (other people's arrangements, never in
 # this repo) and no PyMuPDF: it runs pdfchords.py's spelling and placement
 # on made-up readings. Green: a card that matches its source, and one a
@@ -135,22 +136,37 @@ for case in red blind; do
 done
 unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL
 
-# ---- index.sh: "with chords" links, and a missing chords PDF is red
+# ---- the main book has chords (#8): build.sh refuses a Book.ly that turns them
+# off, before any compile (so this runs with no LilyPond too). The adversary is
+# a Book.ly edited back to ddlmChords = ##f, which would publish a main
+# mellophone-letter.pdf with no chords. With the grep taken out of build.sh
+# the build goes on and does not say this.
+rm -rf "$t/nochordsmain"; cp -r "$m" "$t/nochordsmain"
+sed -i 's/^ddlmChords = ##t$/ddlmChords = ##f/' "$t/nochordsmain/Book.ly"
+if cmp -s "$m/Book.ly" "$t/nochordsmain/Book.ly"; then bad "Book.ly has no 'ddlmChords = ##t' line to turn off"
+elif bash "$t/nochordsmain/build.sh" "$t/nochordsmain-out" >"$t/nochordsmain.out" 2>&1; then
+  bad "build.sh built a main book from a Book.ly with ddlmChords = ##f"
+elif grep -q "Book.ly has no line 'ddlmChords = ##t'; the main book has chords" "$t/nochordsmain.out"; then
+  ok "build.sh refuses a main book without chords"
+else bad "build.sh on ddlmChords = ##f failed, but not for that:"; tail -3 "$t/nochordsmain.out"; fi
+[ -e "$t/nochordsmain-out/mellophone-cards.pdf" ] && bad "a chordless main book was written"
+
+# ---- index.sh: "without chords" links, and a missing alternate PDF is red
 mkdir "$t/out"
-for f in mellophone-cards mellophone-letter mellophone-chords-cards mellophone-chords-letter voodoo voodoo-chords tabu; do
+for f in mellophone-cards mellophone-letter mellophone-nochords-cards mellophone-nochords-letter voodoo voodoo-nochords tabu; do
   : >"$t/out/$f.pdf"; done
 : >"$t/out/mellophone-range.txt"
-printf 'voodoo.pdf\tVoodoo\tvoodoo-chords.pdf\ntabu.pdf\tTabu\t-\n' >"$t/out/songs.tsv"
+printf 'voodoo.pdf\tVoodoo\tvoodoo-nochords.pdf\ntabu.pdf\tTabu\t-\n' >"$t/out/songs.tsv"
 if "$m/index.sh" "$t/out" 0123456789abcdef "2026-11-02 00:00 UTC" >"$t/page.html" 2>&1; then
-  for w in 'href="mellophone-chords-cards.pdf"' 'href="mellophone-chords-letter.pdf"' \
-           'href="voodoo.pdf">Voodoo</a> <a class="with" href="voodoo-chords.pdf">with chords</a>' \
+  for w in 'href="mellophone-nochords-cards.pdf"' 'href="mellophone-nochords-letter.pdf"' \
+           'href="voodoo.pdf">Voodoo</a> <a class="with" href="voodoo-nochords.pdf">without chords</a>' \
            'href="tabu.pdf">Tabu</a></li>'; do
     grep -qF -- "$w" "$t/page.html" && ok "page has $w" || bad "page lacks $w"
   done
 else bad "index.sh failed:"; cat "$t/page.html"; fi
-rm "$t/out/voodoo-chords.pdf"
+rm "$t/out/voodoo-nochords.pdf"
 "$m/index.sh" "$t/out" 0123456789abcdef "2026-11-02 00:00 UTC" >"$t/page.html" 2>&1 \
-  && bad "index.sh with voodoo-chords.pdf missing was green" || ok "index.sh red on a missing chords PDF"
+  && bad "index.sh with voodoo-nochords.pdf missing was green" || ok "index.sh red on a missing no-chords PDF"
 
 # ---- chords.tsv, chords/ and Songs.ily agree
 rows=0
@@ -175,7 +191,7 @@ if ! command -v lilypond >/dev/null || ! command -v gs >/dev/null; then
   echo "SKIP: no lilypond/gs on PATH; the cards were not compiled"
 else
   card() {  # card NAME CHORDS(##t|##f) SONG: compile one card, print its text
-    { sed "s/^ddlmChords = ##f\$/ddlmChords = $2/; /^\\\\[A-Za-z_]*-card\$/d" "$m/Book.ly"
+    { sed "s/^ddlmChords = ##[tf]\$/ddlmChords = $2/; /^\\\\[A-Za-z_]*-card\$/d" "$m/Book.ly"
       printf '\\%s-card\n' "$3"; } >"$t/$1.ly"
     lilypond -I "$m" -o "$t/$1" "$t/$1.ly" >"$t/$1.log" 2>&1 || { echo "LILYPOND FAILED"; tail -5 "$t/$1.log"; return; }
     gs -q -dBATCH -dNOPAUSE -dSAFER -sDEVICE=txtwrite -o - "$t/$1.pdf" 2>/dev/null | tr -d '\0'
@@ -183,6 +199,12 @@ else
   names() { grep -a -o '\bN\.C\.\|\b[A-G][a-z0-9]*' | tr '\n' ' '; }
   # get_my_sound: concert Dm F C Bb (Get_My_Sound.pdf), written a fifth up;
   # its music makes no Staff, so notes read as chords would show as N.C., C6...
+  # The book as committed (Book.ly's own ddlmChords, no sed) is the main one: chords.
+  { sed '/^\\[A-Za-z_]*-card$/d' "$m/Book.ly"; printf '\\get_my_sound-card\n'; } >"$t/main.ly"
+  lilypond -I "$m" -o "$t/main" "$t/main.ly" >"$t/main.log" 2>&1
+  got=$(gs -q -dBATCH -dNOPAUSE -dSAFER -sDEVICE=txtwrite -o - "$t/main.pdf" 2>/dev/null | tr -d '\0' | names)
+  [ "$got" = "F Get Am C G F " ] && ok "the committed Book.ly is the main book: get_my_sound prints Am C G F" \
+    || bad "the committed Book.ly: get_my_sound text [$got], want [F Get Am C G F ]"
   got=$(card gms-on '##t' get_my_sound | names)
   [ "$got" = "F Get Am C G F " ] && ok "with chords: get_my_sound prints Am C G F" \
     || bad "with chords: get_my_sound text [$got], want [F Get Am C G F ]"
@@ -191,7 +213,7 @@ else
     || bad "without chords: get_my_sound text [$got], want [F Get ]"
   # Injected: the chords outside the card's \transpose f c' stay at concert
   # pitch (Dm F C Bb): the check above would be red on them.
-  sed 's/^ddlmChords = ##f$/ddlmChords = ##t/; /^\\[A-Za-z_]*-card$/d' "$m/Book.ly" >"$t/conc.ly"
+  sed 's/^ddlmChords = ##[tf]$/ddlmChords = ##t/; /^\\[A-Za-z_]*-card$/d' "$m/Book.ly" >"$t/conc.ly"
   printf '\\bookpart { \\withChords \\get_my_sound-chords { \\transpose f c'"'"' \\get_my_sound-accompaniment } }\n' >>"$t/conc.ly"
   lilypond -I "$m" -o "$t/conc" "$t/conc.ly" >"$t/conc.log" 2>&1
   got=$(gs -q -dBATCH -dNOPAUSE -dSAFER -sDEVICE=txtwrite -o - "$t/conc.pdf" 2>/dev/null | tr -d '\0' | names)

@@ -57,6 +57,44 @@ if (work=$(mktemp -d -p "$t"); out=$(mktemp -d -p "$t"); here=$m; . "$t/ly.sh"
 elif grep -q 'BLIND' "$t/ly-gone.out"; then ok "ly(): an unreadable LilyPond log is BLIND and refused"
 else bad "ly() refused an unreadable log but did not say BLIND: $(tail -1 "$t/ly-gone.out")"; fi
 
+# ---- ly()'s card-break guards (#25 item 4: "a 2-page song breaks at a
+# rehearsal-section start, never inside one"), against a stub lilypond that
+# writes a PDF of N blank pages and the layout report it is handed. The
+# adversary is a song whose 2nd card starts inside a section, and a page
+# break player.ily never logged. Each must be refused; the honest one passes.
+sed -n '/^pdf_pages() {/,/^}/p' "$m/build.sh" >>"$t/ly.sh"
+grep -q '^pdf_pages() {' "$t/ly.sh" || bad "no pdf_pages() in build.sh"
+lyrun() {  # lyrun NAME PAGES REPORT: ly() on the stub; prints ly()'s stderr, returns its rc
+  local np=$2 report=$3
+  (work=$(mktemp -d -p "$t"); out=$(mktemp -d -p "$t"); here=$m; . "$t/ly.sh"
+   lilypond() {
+     gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -dDEVICEWIDTHPOINTS=396 -dDEVICEHEIGHTPOINTS=432 \
+       -o "$work/x.pdf" -c "$(for _ in $(seq "$np"); do printf 'showpage '; done)" >/dev/null 2>&1
+     [ "$report" = NONE ] || printf '%b' "$report" >"$work/x-layout.txt"
+   }
+   ly x /dev/null) >"$t/lyrun-$1.out" 2>&1
+}
+S='system\tzeina\t13\t14.0\n'
+if lyrun honest 2 "${S}page\tzeina\t2\t7\t13\t25\tmark\n"; then ok "ly(): a 2nd card at a mark, 2 pages, passes"
+else bad "ly() refused a 2nd card at a mark: $(tail -1 "$t/lyrun-honest.out")"; fi
+if lyrun offmark 2 "${S}page\tzeina\t2\t7\t13\t29\tnone\n"; then
+  bad "ly() passed a 2nd card that starts inside a section"
+elif grep -q 'does not start at a rehearsal mark' "$t/lyrun-offmark.out"; then ok "ly(): a 2nd card inside a section is refused"
+else bad "ly() refused the off-mark card for another reason: $(tail -1 "$t/lyrun-offmark.out")"; fi
+if lyrun unlogged 2 "$S"; then
+  bad "ly() passed a 2-page song whose report logs no page break"
+elif grep -q 'the layout report accounts for 1' "$t/lyrun-unlogged.out"; then ok "ly(): a page break player.ily did not log is refused"
+else bad "ly() refused the unlogged break for another reason: $(tail -1 "$t/lyrun-unlogged.out")"; fi
+if lyrun noreport 1 NONE; then bad "ly() passed a build with no layout report"
+elif grep -q 'BLIND' "$t/lyrun-noreport.out"; then ok "ly(): no layout report is BLIND and refused"
+else bad "ly() refused no report but did not say BLIND: $(tail -1 "$t/lyrun-noreport.out")"; fi
+for f in empty junk zero missing; do
+  if (work=$t; . "$t/ly.sh"; pdf_pages "$t/$f.pdf") >"$t/pp-$f.out" 2>&1; then
+    bad "pdf_pages counted an unreadable PDF ($f): $(cat "$t/pp-$f.out")"
+  elif grep -q 'BLIND' "$t/pp-$f.out"; then ok "pdf_pages: $f PDF is BLIND and refused"
+  else bad "pdf_pages refused $f but did not say BLIND: $(tail -1 "$t/pp-$f.out")"; fi
+done
+
 if ! command -v lilypond >/dev/null; then
   echo "SKIP: no lilypond on PATH; the build is not checked"
   [ $fail = 0 ] && echo "ddlm-cards: all ok (card_size only)"
@@ -76,7 +114,7 @@ lowest() {  # the lowest y any page of $1 draws at, rounded down, in pt
 # ---- the build
 if bash "$m/build.sh" "$t/out" >"$t/build.out" 2>&1; then
   ok "build.sh: $(tail -1 "$t/build.out")"
-  for b in mellophone mellophone-chords; do
+  for b in mellophone mellophone-nochords; do
     cards="$t/out/$b-cards.pdf" letter="$t/out/$b-letter.pdf"
     want "$b-cards: every card 5.5x6in" "$(sizes "$cards")" "396x432 "
     want "$b-letter: every sheet landscape letter" "$(sizes "$letter")" "792x612 "

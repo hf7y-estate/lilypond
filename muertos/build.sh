@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 # muertos/build.sh OUTDIR -- build the F mellophone card book into OUTDIR:
-#   mellophone-cards.pdf   the book, one 5.5x6in card per page (#25), one
-#                          card a song where it fits, else as many as it
+#   mellophone-cards.pdf   the book WITH chord symbols (ddlmChords = ##t in
+#                          Book.ly), one 5.5x6in card per page (#25),
+#                          one card a song where it fits, else as many as it
 #                          needs
 #   mellophone-letter.pdf  the same cards 2-up at the top of landscape
 #                          letter (letter-2up.ps), the bottom 2.5in blank
 #                          for the lyre clip, dashed cut lines
-#   <song>.pdf             one cards PDF per song
-#   mellophone-chords-cards.pdf, mellophone-chords-letter.pdf
-#                          the book again with chord symbols (ddlmChords, #6)
-#   <song>-chords.pdf      a song's card with chord symbols, for each song
+#   <song>.pdf             one cards PDF per song, with its chords
+#   mellophone-nochords-cards.pdf, mellophone-nochords-letter.pdf
+#                          the book again without chord symbols (the
+#                          alternate; hf7y asked for chords as the main, #8)
+#   <song>-nochords.pdf    a song's card without chord symbols, for each song
 #                          whose card has \withChords in Songs.ily
-#   songs.tsv              <song>.pdf <TAB> title <TAB> <song>-chords.pdf or -,
-#                          in book order
+#   songs.tsv              <song>.pdf <TAB> title <TAB> <song>-nochords.pdf or
+#                          -, in book order
 #   mellophone-range.txt   written range per song, notes outside C4-C6
 #                          (mellophone.ily writes it)
 # Fails on any LilyPond error, on a card LilyPond had to compress (more
@@ -50,7 +52,27 @@ ly() {  # ly NAME FILE: compile FILE to $out/NAME.pdf, zero errors
   [ -r "$layout" ] || { echo "build.sh: BLIND: no layout report $layout; refusing" >&2; exit 1; }
   off=$(awk -F'\t' '$1=="page" && $7!="mark"{printf "%s card %s (bar %s, %s); ", $2, $3, $6, $7}' "$layout")
   [ -z "$off" ] || { echo "build.sh: $2: a card that does not start at a rehearsal mark: $off" >&2; exit 1; }
+  # The report is player.ily's own word for where it broke. A page LilyPond
+  # broke on its own has no "page" line, so it is read off the PDF too: the
+  # pages must be one a song (its "system" lines) plus one a "page" line.
+  local want got
+  want=$(awk -F'\t' '$1=="system" && !($2 in s){s[$2]=1; n++} $1=="page"{n++} END{print n+0}' "$layout")
+  got=$(pdf_pages "$work/$1.pdf") || exit 1
+  [ "$got" = "$want" ] || { echo "build.sh: $2: $got pages, but the layout report accounts for $want" \
+    "(a card break player.ily did not place, or no report); refusing" >&2; exit 1; }
   mv "$work/$1.pdf" "$out/$1.pdf"
+}
+
+pdf_pages() {  # the page count of $1; BLIND and exit on anything unreadable
+  local got
+  if ! got=$(gs -q -dNODISPLAY -dSAFER --permit-file-read="$1" -sIN="$1" -c \
+      'IN (r) file runpdfbegin pdfpagecount = quit' 2>"$work/pdf_pages.err") \
+     || ! [[ $got =~ ^[1-9][0-9]*$ ]]; then
+    cat "$work/pdf_pages.err" >&2
+    echo "build.sh: BLIND: cannot count the pages of $1 (gs said [$got]); refusing" >&2
+    exit 1
+  fi
+  echo "$got"
 }
 
 card_size() {  # every page of $1 must be 396x432pt (5.5x6in)
@@ -73,16 +95,22 @@ card_size() {  # every page of $1 must be 396x432pt (5.5x6in)
       "(${BASH_REMATCH[2]} of ${BASH_REMATCH[1]} are)" >&2; exit 1; }
 }
 
+# The main book has chord symbols (#8): refuse a Book.ly that turns them off
+# before spending a compile on it.
+grep -qx 'ddlmChords = ##t' "$here/Book.ly" \
+  || { echo "build.sh: Book.ly has no line 'ddlmChords = ##t'; the main book has chords" >&2; exit 1; }
 ly mellophone-cards "$here/Book.ly"
 card_size "$out/mellophone-cards.pdf"
 mv "$work/mellophone-cards-range.txt" "$out/mellophone-range.txt"
 
-# Book.ly with ddlmChords = ##t: the same cards with chord symbols.
-sed 's/^ddlmChords = ##f$/ddlmChords = ##t/' "$here/Book.ly" >"$work/book-chords.ly"
-grep -qx 'ddlmChords = ##t' "$work/book-chords.ly" \
-  || { echo "build.sh: Book.ly has no line 'ddlmChords = ##f'" >&2; exit 1; }
-ly mellophone-chords-cards "$work/book-chords.ly"
-card_size "$out/mellophone-chords-cards.pdf"
+# Book.ly with ddlmChords = ##f: the same cards without chord symbols. The
+# line the sed wrote is checked: a sed that missed (so the alternate has
+# chords) is refused.
+sed 's/^ddlmChords = ##t$/ddlmChords = ##f/' "$here/Book.ly" >"$work/book-nochords.ly"
+grep -qx 'ddlmChords = ##f' "$work/book-nochords.ly" \
+  || { echo "build.sh: the alternate book still has chords (sed missed Book.ly's line)" >&2; exit 1; }
+ly mellophone-nochords-cards "$work/book-nochords.ly"
+card_size "$out/mellophone-nochords-cards.pdf"
 
 : >"$out/songs.tsv"
 for song in $(sed -n 's/^\\\([A-Za-z_]*\)-card$/\1/p' "$here/Book.ly"); do
@@ -92,17 +120,17 @@ for song in $(sed -n 's/^\\\([A-Za-z_]*\)-card$/\1/p' "$here/Book.ly"); do
   card_size "$out/$name.pdf"
   title=$(sed -n 's/^[[:space:]]*piece *= *"\(.*\)"[[:space:]]*$/\1/p' "$here/$song.ly" | head -1)
   [ -n "$title" ] || title=$(echo "${song//_/ }" | sed 's/\b\(.\)/\u\1/g')
-  chords=-
+  nochords=-
   if grep -q "withChords \\\\$song-chords " "$here/Songs.ily"; then
-    { sed '/^\\[A-Za-z_]*-card$/d' "$work/book-chords.ly"; printf '\\%s-card\n' "$song"; } >"$work/$name-chords.ly"
-    ly "$name-chords" "$work/$name-chords.ly"
-    card_size "$out/$name-chords.pdf"
-    chords=$name-chords.pdf
+    { sed '/^\\[A-Za-z_]*-card$/d' "$work/book-nochords.ly"; printf '\\%s-card\n' "$song"; } >"$work/$name-nochords.ly"
+    ly "$name-nochords" "$work/$name-nochords.ly"
+    card_size "$out/$name-nochords.pdf"
+    nochords=$name-nochords.pdf
   fi
-  printf '%s.pdf\t%s\t%s\n' "$name" "$title" "$chords" >>"$out/songs.tsv"
+  printf '%s.pdf\t%s\t%s\n' "$name" "$title" "$nochords" >>"$out/songs.tsv"
 done
 
-for book in mellophone mellophone-chords; do
+for book in mellophone mellophone-nochords; do
   gs -q -dBATCH -dNOPAUSE -dSAFER --permit-file-read="$out/$book-cards.pdf" \
     -sDEVICE=pdfwrite -dDEVICEWIDTHPOINTS=792 -dDEVICEHEIGHTPOINTS=612 -dFIXEDMEDIA \
     -sIN="$out/$book-cards.pdf" -o "$out/$book-letter.pdf" "$here/letter-2up.ps"

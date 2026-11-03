@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # muertos/index.sh OUTDIR SHA DATE -- print ddlm/index.html for a build.sh
 # OUTDIR: the full book (cards and letter) at the top, then each song's card.
-# A with-chords book (mellophone-chords-*.pdf) and a song's third songs.tsv
-# column (its -chords.pdf, or -) add "with chords" links (#6).
+# The main book has chord symbols (#8); an alternate without them
+# (mellophone-nochords-*.pdf) and a song's third songs.tsv column (its
+# -nochords.pdf, or -) add "without chords" links.
 set -euo pipefail
 out=${1:?usage: index.sh OUTDIR SHA DATE} sha=${2:?} date=${3:?}
 esc() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g'; }
@@ -29,13 +30,13 @@ a.with { display: inline; font-size: .85em; padding: 0 0 .4em; }
 <h1>Día de los Muertos: F Mellophone</h1>
 <h2>The whole book</h2>
 <ul>
-<li><a href="mellophone-cards.pdf">Cards, 5.5×6in</a></li>
-<li><a href="mellophone-letter.pdf">Letter, two cards on the top half of each sheet (bottom half blank for the lyre)</a></li>
+<li><a href="mellophone-cards.pdf">Cards with chord symbols, 5.5×6in</a></li>
+<li><a href="mellophone-letter.pdf">Letter with chord symbols, two cards at the top of each sheet (bottom 2.5in blank for the lyre)</a></li>
 HTML
-for f in mellophone-chords-cards.pdf mellophone-chords-letter.pdf; do
+for f in mellophone-nochords-cards.pdf mellophone-nochords-letter.pdf; do
   [ -f "$out/$f" ] || continue
-  case $f in *cards*) what="Cards with chord symbols, 5.5×6in" ;;
-             *) what="Letter with chord symbols, two cards on the top half" ;; esac
+  case $f in *cards*) what="Cards without chord symbols, 5.5×6in" ;;
+             *) what="Letter without chord symbols, two cards at the top" ;; esac
   printf '<li><a href="%s">%s</a></li>\n' "$f" "$what"
 done
 cat <<HTML
@@ -44,12 +45,12 @@ cat <<HTML
 <h2>Songs</h2>
 <ul>
 HTML
-while IFS=$'\t' read -r pdf title chords; do
+while IFS=$'\t' read -r pdf title nochords; do
   [ -f "$out/$pdf" ] || { echo "index.sh: songs.tsv names missing $pdf" >&2; exit 1; }
   with=
-  if [ -n "$chords" ] && [ "$chords" != - ]; then
-    [ -f "$out/$chords" ] || { echo "index.sh: songs.tsv names missing $chords" >&2; exit 1; }
-    with=$(printf ' <a class="with" href="%s">with chords</a>' "$(printf %s "$chords" | esc)")
+  if [ -n "$nochords" ] && [ "$nochords" != - ]; then
+    [ -f "$out/$nochords" ] || { echo "index.sh: songs.tsv names missing $nochords" >&2; exit 1; }
+    with=$(printf ' <a class="with" href="%s">without chords</a>' "$(printf %s "$nochords" | esc)")
   fi
   printf '<li><a href="%s">%s</a>%s</li>\n' "$(printf %s "$pdf" | esc)" "$(printf %s "$title" | esc)" "$with"
 done <"$out/songs.tsv"

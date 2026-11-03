@@ -26,12 +26,7 @@ events() {  # events SONG: $work/SONG.tsv from the song's card
   { printf '#(define ly-events-file "%s")\n' "$work/$1.tsv"
     sed '/^\\[A-Za-z_]*-card$/d' "$here/Book.ly"
     printf '\\include "tools/ly-events.ily"\n'
-    # a song whose melody prints as a system of its own below the part
-    # (santa_sangre, #25) has it in <song>-melody: its voices come after
-    # the part's
-    if grep -q "^$1-melody *=" "$here/$1.ly"; then music="<< \\$1-accompaniment \\$1-melody >>"
-    else music="\\$1-accompaniment"; fi
-    printf "\\\\score { \\\\unfoldRepeats #'(percent) \\\\removeWithTag #'phone \\\\transpose f c' %s }\n" "$music"
+    printf "\\\\score { \\\\unfoldRepeats #'(percent) \\\\removeWithTag #'phone \\\\transpose f c' \\\\%s-accompaniment }\n" "$1"
   } >"$work/$1.ly"
   if ! lilypond -I "$here" -o "$work/$1" "$work/$1.ly" >"$work/$1.log" 2>&1 \
      || grep -q 'error:' "$work/$1.log"; then

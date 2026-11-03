@@ -30,13 +30,13 @@ a.with { display: inline; font-size: .85em; padding: 0 0 .4em; }
 <h1>Día de los Muertos: F Mellophone</h1>
 <h2>The whole book</h2>
 <ul>
-<li><a href="mellophone-cards.pdf">Cards with chord symbols, 5.5×4.25in</a></li>
-<li><a href="mellophone-letter.pdf">Letter with chord symbols, two cards on the top half of each sheet (bottom half blank for the lyre)</a></li>
+<li><a href="mellophone-cards.pdf">Cards with chord symbols, 5.5×6in</a></li>
+<li><a href="mellophone-letter.pdf">Letter with chord symbols, two cards at the top of each sheet (bottom 2.5in blank for the lyre)</a></li>
 HTML
 for f in mellophone-nochords-cards.pdf mellophone-nochords-letter.pdf; do
   [ -f "$out/$f" ] || continue
-  case $f in *cards*) what="Cards without chord symbols, 5.5×4.25in" ;;
-             *) what="Letter without chord symbols, two cards on the top half" ;; esac
+  case $f in *cards*) what="Cards without chord symbols, 5.5×6in" ;;
+             *) what="Letter without chord symbols, two cards at the top" ;; esac
   printf '<li><a href="%s">%s</a></li>\n' "$f" "$what"
 done
 cat <<HTML

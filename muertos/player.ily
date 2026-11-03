@@ -38,8 +38,8 @@
 %      fit and the tuba fallback have read it, the voice after \\ in
 %      << top \\ lower >> is taken out of the part, unless the top voice
 %      is cue-size (\new CueVoice, or \magnifyMusic below 1). That case
-%      (the_fool section C, la_llorona's intro, love_in_outer_space,
-%      santa_sangre) is Zach's open question on #8, "whether a cue-size
+%      (la_llorona's intro, love_in_outer_space; the_fool and santa_sangre
+%      have no cue notes since #25) is Zach's open question on #8, "whether a cue-size
 %      voice is ever the part", and stays as written until he answers it.
 %      What is in the lower voice goes with it: its notes, rests, text
 %      and any \bar or \mark written only there.
@@ -58,10 +58,10 @@
 % mark starts a new system once the current one has 2 bars; no system
 % has fewer than 2 bars unless the song does, counted to the next mark
 % (a system that would leave one bar before it takes that bar). An end
-% mark (\textEndMark: \cueBox, "×4", "D.S.") always ends its system.
-% A song goes on as many 5.5x4.25in cards (#21) as its systems need at
-% player-card-systems a card (player-card-systems-first on the card with
-% the title), and
+% mark (\textEndMark: \cueBox, "×4", "D.S.") always ends its system. A
+% system of sparse bars (#25) takes up to player-max-bars. A song goes on
+% as many 5.5x6in cards (#25) as its systems need at player-card-systems
+% a card (player-card-systems-first on the card with the title), and
 % player-card-breaks puts each page break at a system start that keeps
 % every card within that: at a rehearsal mark if one is in reach, else at
 % a rest (one ends at the bar line, or the bar opens with one), else the
@@ -73,7 +73,8 @@
 %   system <TAB> song <TAB> systems <TAB> staff height in pt (0.01pt)
 %   page <TAB> song <TAB> card <TAB> its first system <TAB> systems <TAB>
 %        its first bar <TAB> mark|rest|none   (one per card after the first)
-%   finger <TAB> song <TAB> bar <TAB> written pitch <TAB> fingering
+%   finger <TAB> song <TAB> bar <TAB> written pitch <TAB> fingering <TAB>
+%        font-size <TAB> grace|note
 % one "system" line per staff, one "finger" line per printed fingering.
 
 % written range, semitones above c' (written C4): C4 .. C6 (Zach,
@@ -87,14 +88,19 @@
 % a system's budget, in 4/4 bars of up to 8 onsets
 #(define player-system-budget 4)
 #(define player-min-bars 2)
-% systems one 5.5x4.25in card holds, measured on this book with Phone.ly's
-% spacing (staff size 14, systems 9-10 staff spaces apart), both builds
-% (with chords and without): at 6 a card, title card included, LilyPond
-% compresses no card; at 7 on the cards after the first, a chords card is
-% over-full (build.sh refuses either). 7 on the title card alone also
-% fits, and saves no card in this book (the same 23 cards), so it is 6 too.
-#(define player-card-systems-first 6)
-#(define player-card-systems 6)
+% "up to 5 bars per system where bars are sparse" (#25 item 2): a sparse
+% bar, one onset a quarter note or fewer, costs player-sparse-cost of its
+% length, so five sparse 4/4 bars make one system; no system has more
+% than player-max-bars
+#(define player-sparse-cost 4/5)
+#(define player-max-bars 5)
+% systems one 5.5x6in card holds (#25), measured on this book with
+% Phone.ly's spacing (staff size 14, systems 7-8 staff spaces apart, 0.5
+% between skylines), both builds: The Fool's 11, its title and the line of
+% text above it fit one card, and Zeina's 13 do not (build.sh refuses an
+% over-full card). Every song but Zeina is 11 systems or fewer.
+#(define player-card-systems-first 11)
+#(define player-card-systems 11)
 % playerLayout = ##f before the \include: keep the score's own breaks
 % (tests/mellophone.sh's fixture needs its \break)
 #(define player-layout-on (if (defined? 'playerLayout) playerLayout #t))
@@ -688,7 +694,9 @@ their top note, each phrase in the player's range."
                                             (vector-ref (vector-ref bars (1+ i)) 2)
                                             player-onsets)
                                         (vector-ref (vector-ref bars i) 2))))
-                        (max (min (- stop start) 1) (/ onsets 8)))))
+                        (max (* (min (- stop start) 1)
+                                (if (<= onsets (* 4 (- stop start))) player-sparse-cost 1))
+                             (/ onsets 8)))))
               (end-mark? (lambda (i) (vector-ref (vector-ref bars i) 5)))
               (section? (lambda (i) (or (vector-ref (vector-ref bars i) 3) (end-mark? i))))
               ;; the bars from i to the next section start (a mark or an end
@@ -709,6 +717,7 @@ their top note, each phrase in the player's range."
                          (and enough
                               (>= (left i) player-min-bars)
                               (or (section? i)
+                                  (>= count player-max-bars)
                                   (> (+ used c) player-system-budget))))
                      (begin (set! starts (cons i starts)) (loop (1+ i) c 1))
                      (loop (1+ i) (+ used c) (1+ count))))))

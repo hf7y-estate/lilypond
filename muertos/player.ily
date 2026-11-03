@@ -66,7 +66,7 @@
 % zeina's 14 on one card overflow it by 7.6 staff spaces (LilyPond's
 % "compressing over-full page"), so 13 is the most that could fit, and 12
 % leaves room for the title and the fingerings above the top staff.
-#(define player-card-systems 12)
+#(define player-card-systems 1000)
 % playerLayout = ##f before the \include: keep the score's own breaks
 % (tests/mellophone.sh's fixture needs its \break)
 #(define player-layout-on (if (defined? 'playerLayout) playerLayout #t))
@@ -452,7 +452,9 @@ their top note, each phrase in the player's range."
                    (if (> (length columns) 2) (cdr (reverse (cdr columns))) '()))
          (for-each (lambda (i)
                      (ly:grob-set-property! (vector-ref (vector-ref bars i) 0)
-                                            'line-break-permission 'force))
+                                            'line-break-permission 'force)
+                     (ly:grob-set-property! (vector-ref (vector-ref bars i) 0)
+                                            'page-break-permission 'allow))
                    starts)
          ;; more systems than a card holds: one page break, at the system
          ;; start at a mark nearest the middle bar, else the system start

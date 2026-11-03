@@ -190,14 +190,14 @@ card() {  # card NAME SONG [LINES]: LINES go before Songs.ily's \include
 # page break at a rehearsal mark, else at a rest, where one is in reach.
 breaks() { awk -F'\t' '$1=="page"{printf "%s@%s ", $6, $7}' "$1" | sed 's/ $//'; }
 if card card-zeina zeina; then
-  want "zeina's 12 systems go on 2 cards" "$(pages "$t/card-zeina.pdf")" 2
-  want "zeina's 2nd card starts at a rehearsal mark (bar@kind)" "$(breaks "$t/card-zeina-layout.txt")" "37@mark"
+  want "zeina's 13 systems go on 2 cards" "$(pages "$t/card-zeina.pdf")" 2
+  want "zeina's 2nd card starts at a rehearsal mark (bar@kind)" "$(breaks "$t/card-zeina-layout.txt")" "26@mark"
 fi
 # Injected: marks are the worst place to break -> zeina breaks off its marks.
 if card card-zeina-inj zeina '#(define player-card-breaks
   (let ((f player-card-breaks)) (lambda (s kind) (f s (lambda (k) (- 2 (kind k)))))))'; then
   got=$(breaks "$t/card-zeina-inj-layout.txt")
-  [ "$got" != "37@mark" ] && ok "injected: with the preference reversed zeina breaks at [$got]" \
+  [ "$got" != "26@mark" ] && ok "injected: with the preference reversed zeina breaks at [$got]" \
     || bad "injected: with the preference reversed zeina still breaks at [$got]"
 fi
 for s in voodoo vis_hora le_chant_des_partisans the_fool la_llorona; do

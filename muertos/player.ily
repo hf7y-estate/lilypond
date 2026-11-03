@@ -57,7 +57,8 @@
 % more, and a system takes bars while their cost is <= 4. A rehearsal
 % mark starts a new system once the current one has 2 bars; no system
 % has fewer than 2 bars unless the song does, counted to the next mark
-% (a system that would leave one bar before it takes that bar). An end
+% (a system that would leave one bar before it breaks a bar sooner and
+% leaves two). An end
 % mark (\textEndMark: \cueBox, "×4", "D.S.") always ends its system. A
 % system of sparse bars (#25) takes up to player-max-bars. A song goes on
 % as many 5.5x6in cards (#25) as its systems need at player-card-systems
@@ -718,7 +719,15 @@ their top note, each phrase in the player's range."
                               (>= (left i) player-min-bars)
                               (or (section? i)
                                   (>= count player-max-bars)
-                                  (> (+ used c) player-system-budget))))
+                                  (> (+ used c) player-system-budget)
+                                  ;; a lone bar before the next mark would
+                                  ;; be left: the next bar breaks, and
+                                  ;; can't. Break here, and leave two.
+                                  (and (= (left i) player-min-bars)
+                                       (< (1+ i) n)
+                                       (or (>= (1+ count) player-max-bars)
+                                           (> (+ used c (cost (1+ i)))
+                                              player-system-budget))))))
                      (begin (set! starts (cons i starts)) (loop (1+ i) c 1))
                      (loop (1+ i) (+ used c) (1+ count))))))
          (set! starts (reverse starts))

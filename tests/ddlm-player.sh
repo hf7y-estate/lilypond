@@ -63,6 +63,28 @@ want "out of range left as is is warned" "$(grep -c 'mellophone: .*outside C4-C6
 fixture fifth-inj "#(set! player-join-limit 12)" "c'4( e' g'' c''') | d'''2( e''') |"
 want "injected: join limit an octave lets it leap" "$(notes fifth-inj)" "60 64 79 84 74 76"
 
+# ---- the tuba fallback (#8's "harmonic floor"): the same D6 E6 as
+# "fifth" above, no shift of which fits (the same join-limit math), but
+# now with a second voice (after \\, the one item 7 doesn't play, both
+# measures sounding E4, itself in range) under it. Both D6 and E6 move to
+# the octave of that E4 nearest their own that is in range: E5, both of
+# them.
+topnotes() {  # topnotes NAME: the first voice's notes (the top voice,
+  # engraved before the one after \\, so always the first one logged)
+  local v=$(awk -F'\t' '$4=="note"{print $7; exit}' "$t/$1.tsv")
+  awk -F'\t' -v v="$v" '$4=="note" && $7==v{printf "%s ", $5}' "$t/$1.tsv" | sed 's/ $//'
+}
+tuba="<< { c'4( e' g'' c''') | d'''2( e''') | } \\\\ { e'2 | e'2 | } >>"
+fixture tuba "" "$tuba"
+want "a note no shift fits is replaced from the voice after \\\\" "$(topnotes tuba)" "60 64 79 84 76 76"
+grep -q 'mellophone: .*outside' "$t/tuba.log" \
+  && bad "range warning on a note the tuba fallback replaced"
+# Injected: without it, this is exactly "fifth"'s case (left as is, warned).
+fixture tuba-inj "#(define (player-tuba-fallback! phrases shadow) #f)" "$tuba"
+want "injected: without the tuba fallback it is left as is" "$(topnotes tuba-inj)" "60 64 79 84 86 88"
+want "injected: without the tuba fallback it is warned" \
+  "$(grep -c 'mellophone: .*outside C4-C6' "$t/tuba-inj.log")" 2
+
 # Repeated and sequential phrases take the same shift (#8 item 2).
 # D4 E4 F4 stays; the high phrase goes down; the low A3 has to go up, and
 # fewest octave changes alone would leave everything after it up there:
@@ -97,6 +119,8 @@ if ly book; then
   [ "${rin:-0}" -gt 1 ] && ok "rin_de_angelito has $rin systems" || bad "rin_de_angelito has [$rin] systems, want more than 1"
   want "gnossienne: no note above C6" \
     "$(awk -F'\t' '$1=="gnossienne"{print $4}' "$t/book-range.txt")" none
+  want "la_llorona: m6's D6 is replaced from the accompaniment voice" \
+    "$(awk -F'\t' '$1=="la_llorona"{print $4}' "$t/book-range.txt")" none
   want "no fingering with a dash" "$(awk -F'\t' '$1=="finger" && $5 ~ /-/' "$L" | wc -l)" 0
   want "zeina's Db5 (m29) carries a fingering" \
     "$(awk -F'\t' '$1=="finger" && $2=="zeina" && $4=="Db5"{print $3, $5}' "$L")" "29 12"

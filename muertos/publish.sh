@@ -2,7 +2,8 @@
 # muertos/publish.sh -- build the card book (build.sh), replace ddlm/ in
 # hf7y/hf7y.github.io with it plus an index.html (index.sh), commit and push
 # that repo's master, then wait until https://hf7y.com/ddlm/ serves this
-# build with every PDF answering 200 (check-live.sh).
+# build with every PDF answering 200 and the main book printing chord
+# symbols, read off the live PDFs (check-live.sh, #8).
 # Touches nothing in the site repo outside ddlm/. Refuses uncommitted
 # changes under muertos/, so the page's source sha is what was built.
 # Refuses first unless recheck.sh is green: no card goes live that no

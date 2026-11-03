@@ -25,10 +25,19 @@
 %        appear at a join. Each part of a << >> is its own line; the lower
 %        voices of << ... \\ ... >> are not fitted (the player takes the
 %        top voice, item 7) and stay as written.
-%   Not here yet (#8 items 8 and 10): borrowing another part's measures,
-%   the beat skeleton and the tuba fallback. A phrase the shifts cannot
-%   fit stays as it is and is still warned about and listed by
-%   mellophone.ily's range report.
+%   4. The tuba fallback (#8's "harmonic floor", the last rung of the
+%      ladder before item 2's "stays as it is"): a note the phrase shift
+%      still cannot place is replaced by the simultaneous note of the
+%      << melody \\ harmony >> voice the player doesn't otherwise play
+%      (item 7 takes the top voice only), moved by whole octaves to the
+%      octave nearest its own that fits C4-C6. This only reaches the
+%      notes a shift can't fix; everything else is untouched.
+%   Not here yet (#8 item 8's borrow from another INSTRUMENT'S part --
+%   trumpet/trombone/tuba -- and #8 item 10's beat skeleton): both need
+%   the other instruments' PDFs, which live only at
+%   dexter:~/ddlm-sources/2026 and are not in this repo. A song with no
+%   second voice of its own (most of them: pdf2ly.py reads one staff) has
+%   no local fallback and still just warns.
 %
 % Layout (#8 item 6), for every score: Player_layout_engraver places the
 % line breaks itself and ignores the songs' own \break. A system holds
@@ -111,9 +120,10 @@
 
 #(define (player-named? names) (lambda (a) (memq (ly:music-property a 'name) names)))
 
-#(define (player-note-item m notes line)
-   "Add the note group NOTES (the notes of M) to LINE, and a breath after
-it if a phrase ends on it."
+#(define (player-note-item m notes line pos)
+   "Add the note group (POS . NOTES) to LINE, and a breath after it if a
+phrase ends on it. POS (a moment) is where the group starts, for the
+tuba fallback's lookup into the voice the player doesn't play."
    (let* ((arts (append (ly:music-property m 'elements '())
                         (append-map (lambda (n) (ly:music-property n 'articulations '()))
                                     notes)))
@@ -126,8 +136,11 @@ it if a phrase ends on it."
           (d (ly:music-property (car notes) 'duration #f))
           (long (and (ly:duration? d)
                      (not (ly:moment<? (ly:duration-length d) (ly:make-moment 1)))))
-          (line (cons notes line)))
+          (line (cons (cons pos notes) line)))
      (if (or ends (and long (not tied))) (cons 'breath line) line)))
+
+#(define (player-group-notes g) (cdr g))
+#(define (player-group-pos g) (car g))
 
 #(define (player-top-voice elements)
    "The elements of a << >> that are not a lower voice. In << a \\\\ b >>,
@@ -139,20 +152,74 @@ left where it is written."
            ((eq? (ly:music-property (car els) 'name) 'VoiceSeparator) (reverse out))
            (else (loop (cdr els) (cons (car els) out))))))
 
+#(define (player-after-separator elements)
+   "The elements of a << a \\\\ b >> after the VoiceSeparator (b), or '()
+if there is none: the tuba fallback's only local source, the voice the
+player doesn't play (item 7)."
+   (let loop ((els elements))
+     (cond ((null? els) '())
+           ((eq? (ly:music-property (car els) 'name) 'VoiceSeparator) (cdr els))
+           (else (loop (cdr els))))))
+
+#(define (player-shadow-line elements pos)
+   "The flat, time-ordered list of note groups ((pos . notes) ...) of
+ELEMENTS (the voice after a VoiceSeparator, player-after-separator),
+starting at POS: the tuba fallback's only local source for a line built
+from the same << >>. '() if ELEMENTS is empty."
+   (if (null? elements)
+       '()
+       (let ((shadow '()))
+         (define (walk m line pos)
+           (let ((name (ly:music-property m 'name)))
+             (cond
+              ((player-not-notes? m) line)
+              ((player-note? m) (player-note-item m (list m) line pos))
+              ((eq? name 'EventChord)
+               (let* ((els (ly:music-property m 'elements '()))
+                      (notes (filter player-note? els)))
+                 (if (pair? notes) (player-note-item m notes line pos) line)))
+              (else
+               (let* ((e (ly:music-property m 'element #f))
+                      (line (if (ly:music? e) (walk e line pos) line))
+                      (els (ly:music-property m 'elements '())))
+                 (car (fold (lambda (el acc)
+                              (cons (walk el (car acc) (cdr acc))
+                                    (ly:moment-add (cdr acc) (ly:music-length el))))
+                            (cons line pos)
+                            els)))))))
+         (for-each (lambda (e) (set! shadow (append shadow (reverse (walk e '() pos)))))
+                   elements)
+         (filter pair? shadow))))
+
+#(define (player-shadow-at shadow pos)
+   "The notes of SHADOW's last group starting at or before POS, or #f."
+   (let loop ((sh shadow) (best #f))
+     (cond ((null? sh) best)
+           ((ly:moment<? pos (player-group-pos (car sh))) best)
+           (else (loop (cdr sh) (player-group-notes (car sh)))))))
+
 #(define (player-lines m)
-   "The lines of M, each a list in time order of note groups (lists of
-NoteEvents) and the symbols rest and breath. Each part of a << >> is a
-line of its own, but for the lower voices of a << ... \\\\ ... >>."
+   "The lines of M, each a pair (line . shadow). LINE is a list in time
+order of note groups ((pos . notes), pos a moment) and the symbols rest
+and breath. Each part of a << >> is a line of its own, but for the lower
+voices of a << ... \\\\ ... >>: SHADOW is that voice's own flat timeline
+(player-shadow-line), the tuba fallback's source, or '() when there is
+none."
    (let ((lines '()))
-     (define (walk m line)
+     ;; SHADOW is inherited down through nesting: a << >> with its own
+     ;; VoiceSeparator sets it for its top-voice branches; one without
+     ;; (<< \form breaks >>, no \\, just for layering \break marks) passes
+     ;; its own SHADOW through unchanged, so a split further down (what
+     ;; actually holds the notes) still reaches the right shadow voice.
+     (define (walk m line pos shadow)
        (let ((name (ly:music-property m 'name)))
          (cond
           ((player-not-notes? m) line)
-          ((player-note? m) (player-note-item m (list m) line))
+          ((player-note? m) (player-note-item m (list m) line pos))
           ((eq? name 'EventChord)
            (let* ((els (ly:music-property m 'elements '()))
                   (notes (filter player-note? els)))
-             (cond ((pair? notes) (player-note-item m notes line))
+             (cond ((pair? notes) (player-note-item m notes line pos))
                    ((any (player-named? '(RestEvent MultiMeasureRestEvent SkipEvent)) els)
                     (cons 'rest line))
                    (else line))))
@@ -162,14 +229,24 @@ line of its own, but for the lower voices of a << ... \\\\ ... >>."
            (cons 'rest line))
           ((eq? name 'BreathingEvent) (cons 'breath line))
           ((eq? name 'SimultaneousMusic)
-           (for-each (lambda (e) (set! lines (cons (reverse (walk e '())) lines)))
-                     (player-top-voice (ly:music-property m 'elements '())))
+           (let* ((els (ly:music-property m 'elements '()))
+                  (own (player-shadow-line (player-after-separator els) pos))
+                  (effective (if (null? own) shadow own)))
+             (for-each (lambda (e)
+                         (set! lines (cons (cons (reverse (walk e '() pos effective)) effective)
+                                           lines)))
+                       (player-top-voice els)))
            (cons 'breath line))
           (else
            (let* ((e (ly:music-property m 'element #f))
-                  (line (if (ly:music? e) (walk e line) line)))
-             (fold walk line (ly:music-property m 'elements '())))))))
-     (set! lines (cons (reverse (walk m '())) lines))
+                  (line (if (ly:music? e) (walk e line pos shadow) line))
+                  (els (ly:music-property m 'elements '())))
+             (car (fold (lambda (el acc)
+                          (cons (walk el (car acc) (cdr acc) shadow)
+                                (ly:moment-add (cdr acc) (ly:music-length el))))
+                        (cons line pos)
+                        els)))))))
+     (set! lines (cons (cons (reverse (walk m '() (ly:make-moment 0) '())) '()) lines))
      (reverse lines)))
 
 #(define (player-phrases line)
@@ -193,7 +270,7 @@ line of its own, but for the lower voices of a << ... \\\\ ... >>."
          ((> (car a) (car b)) #f)
          (else (player-cost<? (cdr a) (cdr b)))))
 
-#(define (player-group-top g) (apply max (map player-semis g)))
+#(define (player-group-top g) (apply max (map player-semis (player-group-notes g))))
 
 #(define (player-phrase-tops p) (map player-group-top (vector-ref p 0)))
 
@@ -237,7 +314,7 @@ moved."
                                   (let ((x (+ s (player-semis note))))
                                     (if (or (< x player-low) (> x player-high))
                                         (set! out (1+ out)))))
-                                g))
+                                (player-group-notes g)))
                     (vector-ref (vector-ref phrases i) 0))
                    (list 0 out
                          (if (and l (not (= l i)) (vector-ref targets l)
@@ -288,11 +365,61 @@ moved."
                (back (1- i) (or (cdr (vector-ref (vector-ref best i) j)) 0)))))
        choice)))
 
-#(define (player-fit-line! line)
+#(define (player-in-range? s) (and (>= s player-low) (<= s player-high)))
+
+#(define (player-fit-pitch pitch near)
+   "PITCH (a ly:pitch, unmoved) shifted by whole octaves to the octave
+nearest NEAR (a semitone value) that lies in C4-C6, as a semitone value;
+#f if no octave of it does."
+   (let* ((base (ly:pitch-semitones pitch))
+          (fits (filter player-in-range?
+                        (map (lambda (o) (+ base (* 12 o))) '(-3 -2 -1 0 1 2 3)))))
+     (and (pair? fits)
+          (fold (lambda (s best) (if (< (abs (- s near)) (abs (- best near))) s best))
+                (car fits) (cdr fits)))))
+
+#(define (player-set-to-semis! note pitch target)
+   "Set NOTE's pitch to PITCH moved by whole octaves to read TARGET
+semitones above c'."
+   (ly:music-set-property!
+    note 'pitch
+    (ly:pitch-transpose pitch
+                        (ly:make-pitch (round (/ (- target (ly:pitch-semitones pitch)) 12))
+                                       0 0))))
+
+#(define (player-tuba-fallback! phrases shadow)
+   "Item 2's last rung, the tuba fallback: a note still out of range after
+the phrase shift is replaced by SHADOW's (player-shadow-line) simultaneous
+note, moved to the octave nearest the note's own that fits. Left as it was
+(and still warned about, mellophone.ily's range report) if SHADOW has
+nothing there, or nothing of it fits either."
+   (if (pair? shadow)
+       (vector-for-each
+        (lambda (phrase)
+          (for-each
+           (lambda (g)
+             (let ((bad (filter (lambda (note) (not (player-in-range? (player-semis note))))
+                                 (player-group-notes g))))
+               (if (pair? bad)
+                   (let ((sg (player-shadow-at shadow (player-group-pos g))))
+                     (if sg
+                         (let* ((top (fold (lambda (x best)
+                                             (if (> (player-semis x) (player-semis best)) x best))
+                                           (car sg) (cdr sg)))
+                                (pitch (ly:music-property top 'pitch))
+                                (target (player-fit-pitch pitch (player-semis (car bad)))))
+                           (if target
+                               (for-each (lambda (note) (player-set-to-semis! note pitch target))
+                                         bad))))))))
+           (vector-ref phrase 0)))
+        phrases)))
+
+#(define (player-fit-line! line shadow)
    "Choose and apply one octave shift per phrase of LINE. A repeat or
 sequence is asked to take its first phrase's shift; that first phrase's
 own choice can move once the repeats weigh in, so this runs again, with
-the new targets, until they hold still (at most 4 rounds)."
+the new targets, until they hold still (at most 4 rounds). Then the tuba
+fallback (player-tuba-fallback!) for whatever is still out of range."
    (let* ((phrases (list->vector (player-phrases line)))
           (n (vector-length phrases)))
      (if (> n 0)
@@ -321,8 +448,9 @@ the new targets, until they hold still (at most 4 rounds)."
                           note 'pitch
                           (ly:pitch-transpose (ly:music-property note 'pitch)
                                               (ly:make-pitch (/ s 12) 0 0))))
-                       g))
-                    (vector-ref (vector-ref phrases i) 0)))))))))
+                       (player-group-notes g)))
+                    (vector-ref (vector-ref phrases i) 0)))))
+           (player-tuba-fallback! phrases shadow)))))
 
 mellophonePart =
 #(define-music-function (music) (ly:music?)
@@ -334,7 +462,7 @@ their top note, each phrase in the player's range."
       (expand-repeat-chords!
        (cons 'rhythmic-event (ly:parser-lookup '$chord-repeat-events)) m))
      (player-top-notes! m)
-     (for-each player-fit-line! (player-lines m))
+     (for-each (lambda (p) (player-fit-line! (car p) (cdr p))) (player-lines m))
      m))
 
 %% ---------------------------------------------------------------- report

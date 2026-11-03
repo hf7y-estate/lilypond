@@ -138,8 +138,8 @@ if ly book; then
   want "la_llorona: m6's D6 is replaced from the accompaniment voice" \
     "$(awk -F'\t' '$1=="la_llorona"{print $4}' "$t/book-range.txt")" none
   want "no fingering with a dash" "$(awk -F'\t' '$1=="finger" && $5 ~ /-/' "$L" | wc -l)" 0
-  want "zeina's Db5 (m29) carries a fingering" \
-    "$(awk -F'\t' '$1=="finger" && $2=="zeina" && $4=="Db5"{print $3, $5}' "$L")" "29 12"
+  want "zeina's Db5 (m22, was m29 before the intro and B folds) carries a fingering" \
+    "$(awk -F'\t' '$1=="finger" && $2=="zeina" && $4=="Db5"{print $3, $5}' "$L")" "22 12"
   # every card of every song holds at most 6 systems: from each song's
   # "page" lines (a card's first system) and its system count
   want "no card over 6 systems" "$(awk -F'\t' '
@@ -160,7 +160,7 @@ card() {  # card NAME SONG [LINES]: LINES go before Songs.ily's \include
 # page break at a rehearsal mark, else at a rest, where one is in reach.
 breaks() { awk -F'\t' '$1=="page"{printf "%s@%s ", $6, $7}' "$1" | sed 's/ $//'; }
 if card card-zeina zeina; then
-  want "zeina's 14 systems go on 3 cards" "$(pages "$t/card-zeina.pdf")" 3
+  want "zeina's 12 systems go on 2 cards" "$(pages "$t/card-zeina.pdf")" 2
   want "zeina's cards break at its marks (bar@kind)" "$(breaks "$t/card-zeina-layout.txt")" "25@mark 44@mark"
 fi
 # Injected: no break is better than another -> zeina splits evenly, off its marks.
@@ -193,8 +193,7 @@ card vis vis_hora "#(define ly-events-file \"$t/vis.tsv\")
 \\include \"tools/ly-events.ily\"" && want "vis_hora: one voice prints" "$(voices vis)" 1
 card fool the_fool "#(define ly-events-file \"$t/fool.tsv\")
 \\include \"tools/ly-events.ily\"" \
-  && { n=$(voices fool); [ "$n" -gt 1 ] && ok "the_fool keeps its $n voices (open cue question)" \
-       || bad "the_fool prints $n voice, want its cue and harmony both"; }
+  && want "the_fool: section C cue dropped, one voice prints (#25, Zach 2026-11-02: Mids)" "$(voices fool)" 1
 
 [ $fail = 0 ] && echo "ddlm-player: all ok"
 exit $fail

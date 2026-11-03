@@ -36,16 +36,20 @@
 % a compressed multi-measure rest prints as one bar) or its onsets / 8 if
 % more, and a system takes bars while their cost is <= 4. A rehearsal
 % mark starts a new system once the current one has 2 bars; no system
-% has fewer than 2 bars unless the song does. A song with more systems
-% than player-card-systems goes on two cards, split before the system that
-% starts at the rehearsal mark nearest the middle of the song (the system
-% start nearest the middle when no system starts at a mark); no other page
-% break is allowed. Phone.ly's ragged-bottom = ##f spreads a shorter
-% song's systems over the whole card. One staff size for every card
-% (Phone.ly's set-global-staff-size).
+% has fewer than 2 bars unless the song does. A song goes on as many
+% 5.5x4.25in cards (#21) as its systems need at player-card-systems a card
+% (player-card-systems-first on the card with the title), and
+% player-card-breaks puts each page break at a system start that keeps
+% every card within that: at a rehearsal mark if one is in reach, else at
+% a rest (one ends at the bar line, or the bar opens with one), else the
+% start nearest an even split; no other page break is allowed. Phone.ly
+% packs the systems from the top of the card (ragged-bottom). One staff
+% size for every card (Phone.ly's set-global-staff-size).
 %
 % Every run writes <output>-layout.txt for tests/ddlm-player.sh:
 %   system <TAB> song <TAB> systems <TAB> staff height in pt (0.01pt)
+%   page <TAB> song <TAB> card <TAB> its first system <TAB> systems <TAB>
+%        its first bar <TAB> mark|rest|none   (one per card after the first)
 %   finger <TAB> song <TAB> bar <TAB> written pitch <TAB> fingering
 % one "system" line per staff, one "finger" line per printed fingering.
 
@@ -60,13 +64,14 @@
 % a system's budget, in 4/4 bars of up to 8 onsets
 #(define player-system-budget 4)
 #(define player-min-bars 2)
-% systems one card holds, measured on this book with Phone.ly's spacing
-% (staff size 14, systems at least 12 staff spaces apart): the tallest
-% single cards, ana_dammi_falastini and the_fool, have 11 systems and fit;
-% zeina's 14 on one card overflow it by 7.6 staff spaces (LilyPond's
-% "compressing over-full page"), so 13 is the most that could fit, and 12
-% leaves room for the title and the fingerings above the top staff.
-#(define player-card-systems 1000)
+% systems one 5.5x4.25in card holds, measured on this book with Phone.ly's
+% spacing (staff size 14, systems 9-10 staff spaces apart), both builds
+% (with chords and without): at 6 a card, title card included, LilyPond
+% compresses no card; at 7 on the cards after the first, a chords card is
+% over-full (build.sh refuses either). 7 on the title card alone also
+% fits, and saves no card in this book (the same 23 cards), so it is 6 too.
+#(define player-card-systems-first 6)
+#(define player-card-systems 6)
 % playerLayout = ##f before the \include: keep the score's own breaks
 % (tests/mellophone.sh's fixture needs its \break)
 #(define player-layout-on (if (defined? 'playerLayout) playerLayout #t))
@@ -392,18 +397,77 @@ their top note, each phrase in the player's range."
 
 % Score half: one record per bar start, line and page breaks set in
 % finalize, once the whole song is known.
+#(define (player-event-song event)
+   (let* ((origin (ly:event-property event 'origin #f))
+          (file (if (ly:input-location? origin)
+                    (car (ly:input-file-line-char-column origin)) "?"))
+          (base (basename file)))
+     ;; a song's notes are in <song>.ly; chords/<song>.ily's are not its
+     (and (string-suffix? ".ly" base)
+          (substring base 0 (- (string-length base) 3)))))
+
+% The cards for a song of S systems: the fewest that hold them (the first
+% card holds player-card-systems-first, each after it player-card-systems),
+% and before each card's first system a page break chosen in turn: of the
+% system starts that still leave every card within its capacity, the one
+% at a rehearsal mark, else one at a rest, else any; ties go to the one
+% nearest an even split of what is left. KIND is a procedure: system ->
+% 0 (mark), 1 (rest), 2 (neither). Returns the systems that start a card,
+% after the first.
+#(define (player-card-breaks S kind)
+   (let* ((first player-card-systems-first)
+          (more player-card-systems)
+          (cards (if (<= S first) 1 (+ 1 (ceiling (/ (- S first) more))))))
+     (let loop ((j 1) (prev 0) (acc '()))
+       (if (>= j cards)
+           (reverse acc)
+           (let* ((cap (if (= j 1) first more))
+                  (lo (max (1+ prev) (- S (* more (- cards j)))))
+                  (hi (min (+ prev cap) (1- S)))
+                  (target (+ prev (/ (- S prev) (- cards j -1))))
+                  (better? (lambda (a b)
+                             (or (< (kind a) (kind b))
+                                 (and (= (kind a) (kind b))
+                                      (< (abs (- a target)) (abs (- b target)))))))
+                  (best (let pick ((b lo) (best #f))
+                          (if (> b hi) best
+                              (pick (1+ b) (if (or (not best) (better? b best)) b best))))))
+             (loop (1+ j) best (cons best acc)))))))
+
 #(define (Player_layout_engraver context)
-   (let ((bars '())        ; newest first: #(column start-moment onsets-before mark?)
+   (let ((bars '())        ; newest first: #(column start-moment onsets-before mark? rest?)
          (mark #f)
+         (rest-now #f)     ; a rest starts at this moment, and no note does
+         (note-now #f)
+         (rest-until #f)   ; where the latest rest heard ends
+         (song #f)
          (columns '()))
      (make-engraver
-      ((start-translation-timestep engraver) (set! mark #f))
+      ((start-translation-timestep engraver)
+       (set! mark #f) (set! rest-now #f) (set! note-now #f))
       (listeners
-       ((mark-event engraver event) (set! mark #t)))
+       ((mark-event engraver event) (set! mark #t))
+       ((note-event engraver event)
+        (set! note-now #t)
+        (if (not song) (set! song (player-event-song event))))
+       ((rest-event engraver event)
+        (set! rest-now #t)
+        (set! rest-until (+ (ly:moment-main (ly:context-current-moment context))
+                            (ly:moment-main (ly:duration-length
+                                             (ly:event-property event 'duration))))))
+       ((multi-measure-rest-event engraver event)
+        (set! rest-now #t)
+        (set! rest-until (+ (ly:moment-main (ly:context-current-moment context))
+                            (ly:moment-main (ly:duration-length
+                                             (ly:event-property event 'duration)))))))
       ((process-music engraver)
-       (let ((col (ly:context-property context 'currentCommandColumn #f))
-             (pos (ly:context-property context 'measurePosition (ly:make-moment 0)))
-             (now (ly:context-current-moment context)))
+       (let* ((col (ly:context-property context 'currentCommandColumn #f))
+              (pos (ly:context-property context 'measurePosition (ly:make-moment 0)))
+              (now (ly:context-current-moment context))
+              ;; a breath before this moment: a rest ends here, or one
+              ;; starts here with no note beside it
+              (rest (or (and rest-until (equal? rest-until (ly:moment-main now)))
+                        (and rest-now (not note-now)))))
          (if col (set! columns (cons col columns)))
          ;; a bar starts at its first moment, grace notes before the
          ;; downbeat included (a mark or a break goes before them)
@@ -411,10 +475,12 @@ their top note, each phrase in the player's range."
                   (not (and (pair? bars)
                             (equal? (ly:moment-main now)
                                     (ly:moment-main (vector-ref (car bars) 1))))))
-             (set! bars (cons (vector col now player-onsets mark) bars)))
-         (if (and mark (pair? bars)
+             (set! bars (cons (vector col now player-onsets mark rest) bars)))
+         (if (and (pair? bars)
                   (equal? (ly:moment-main now) (ly:moment-main (vector-ref (car bars) 1))))
-             (vector-set! (car bars) 3 #t))))
+             (begin
+               (if mark (vector-set! (car bars) 3 #t))
+               (if rest (vector-set! (car bars) 4 #t))))))
       ((finalize engraver)
        (if player-layout-on
        (let* ((bars (list->vector (reverse bars)))
@@ -452,22 +518,27 @@ their top note, each phrase in the player's range."
                    (if (> (length columns) 2) (cdr (reverse (cdr columns))) '()))
          (for-each (lambda (i)
                      (ly:grob-set-property! (vector-ref (vector-ref bars i) 0)
-                                            'line-break-permission 'force)
-                     (ly:grob-set-property! (vector-ref (vector-ref bars i) 0)
-                                            'page-break-permission 'allow))
+                                            'line-break-permission 'force))
                    starts)
-         ;; more systems than a card holds: one page break, at the system
-         ;; start at a mark nearest the middle bar, else the system start
-         ;; nearest the middle
-         (let* ((marked (filter (lambda (i) (vector-ref (vector-ref bars i) 3)) starts))
-                (pool (if (pair? marked) marked starts))
-                (mid (/ n 2)))
-           (if (and (pair? pool) (> (1+ (length starts)) player-card-systems))
-               (let ((i (fold (lambda (i best)
-                                (if (< (abs (- i mid)) (abs (- best mid))) i best))
-                              (car pool) (cdr pool))))
-                 (ly:grob-set-property! (vector-ref (vector-ref bars i) 0)
-                                        'page-break-permission 'force))))))))))
+         ;; the cards: page breaks only where player-card-breaks puts them
+         (let* ((sys (list->vector (cons 0 starts)))
+                (bar (lambda (k) (vector-ref bars (vector-ref sys k))))
+                (kind (lambda (k) (cond ((vector-ref (bar k) 3) 0)
+                                        ((vector-ref (bar k) 4) 1)
+                                        (else 2)))))
+           (if (> n 0)
+               (for-each
+                (lambda (k card)
+                  (ly:grob-set-property! (vector-ref (bar k) 0)
+                                         'page-break-permission 'force)
+                  ;; page <TAB> song <TAB> card <TAB> its first system (from 1)
+                  ;; <TAB> of systems <TAB> its first bar (from 1) <TAB>
+                  ;; mark|rest|none
+                  (player-log "page" (or song "?") card (1+ k) (vector-length sys)
+                              (1+ (vector-ref sys k))
+                              (list-ref '(mark rest none) (kind k))))
+                (player-card-breaks (vector-length sys) kind)
+                (iota (length (player-card-breaks (vector-length sys) kind)) 2))))))))))
 
 #(define (player-fingering-direction grob) UP)
 

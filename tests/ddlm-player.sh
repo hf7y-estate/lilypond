@@ -100,15 +100,30 @@ want "injected: without the repeat rule they move" "$(notes repeat-inj)" \
   "62 64 65 69 67 72 69 74 76 77 76 78 79"
 
 # ---- top note, fingering
-# <c' e' g'> <d' f' a'> -> G4 A4; two voices E5/C5 then C#5/A4 -> only the
-# top voice is fingered; Db5 after C#5 is another pitch and is fingered.
-fixture top "" "<c' e' g'>2 <d' f' a'>2 | << { e''2 cis''2 } \\\\ { c''2 a'2 } >> | des''1 |"
-want "chords reduce to the top note" "$(notes top)" "67 69 76 72 73 69 73"
+# <c' e' g'> <d' f' a'> -> G4 A4; two voices E5/C5 then C#5/A4 -> the
+# lower voice is taken out, so only E5 C#5 print; Db5 after C#5 is another
+# pitch and is fingered.
+top="<c' e' g'>2 <d' f' a'>2 | << { e''2 cis''2 } \\\\ { c''2 a'2 } >> | des''1 |"
+fixture top "" "$top"
+want "chords reduce to the top note, the lower voice is out" "$(notes top)" "67 69 76 73 73"
 want "one note per voice per moment" \
   "$(awk -F'\t' '$4=="note"{print $1, $2, $7}' "$t/top.tsv" | sort | uniq -d | wc -l)" 0
 want "fingered: top notes, spelled pitch, no dashes" \
   "$(awk -F'\t' '$1=="finger"{printf "%s=%s ", $4, $5}' "$t/top-layout.txt")" \
   "G4=0 A4=12 E5=0 C#5=12 Db5=12 "
+# Injected: without player-drop-lower! the lower voice's C5 A4 print again.
+fixture top-inj "#(define (player-drop-lower! m) #t)" "$top"
+want "injected: without the drop the lower voice prints" "$(notes top-inj)" "67 69 76 72 73 69 73"
+
+# A cue-size top voice keeps the voice under it: whether a cue is ever the
+# part is Zach's open question on #8, so those passages stay as written.
+fixture cue-mag "" "<< \\magnifyMusic 0.63 { e''2 cis''2 } \\\\ { c''2 a'2 } >> |"
+want "a \\magnifyMusic top voice keeps the voice under it" "$(notes cue-mag)" "76 72 73 69"
+fixture cue-voice "" "<< \\new CueVoice { \\voiceOne e''2 cis''2 } \\\\ { c''2 a'2 } >> |"
+want "a CueVoice top voice keeps the voice under it" "$(notes cue-voice)" "76 72 73 69"
+# \magnifyMusic's own output is unchanged by the mark player.ily puts on it.
+fixture mag-up "" "\\magnifyMusic 1.5 { c''2 d''2 } |"
+want "\\magnifyMusic above 1 is no cue, and still engraves" "$(notes mag-up)" "72 74"
 
 # ---- the book
 { cat "$m/Book.ly"; printf '#(define ly-events-file "%s")\n\\include "tools/ly-events.ily"\n' "$t/book.tsv"; } >"$t/book.ly"
@@ -145,6 +160,18 @@ card love-inj love_in_outer_space "$events
 mellophonePart = #(define-music-function (m) (ly:music?) #{ \\transpose f c' \$m #})" \
   && { n=$(chords); [ "$n" -gt 0 ] && ok "injected: without the reduction, love_in_outer_space has $n chords" \
        || bad "injected: a plain \\transpose f c' left $n chords, want some"; }
+
+# vis_hora m1-4: the cue-size "accomp. simile" stabs under the melody are
+# taken out (hf7y on #21: "the lower voice of << \\ >> passages still
+# prints (Vi's Hora m1-4)"). the_fool's section C, a CueVoice melody over
+# its hand-entered harmony, keeps both: Zach's open cue question.
+voices() { awk -F'\t' '$4=="note"{print $7}' "$t/$1.tsv" | sort -u | wc -l; }
+card vis vis_hora "#(define ly-events-file \"$t/vis.tsv\")
+\\include \"tools/ly-events.ily\"" && want "vis_hora: one voice prints" "$(voices vis)" 1
+card fool the_fool "#(define ly-events-file \"$t/fool.tsv\")
+\\include \"tools/ly-events.ily\"" \
+  && { n=$(voices fool); [ "$n" -gt 1 ] && ok "the_fool keeps its $n voices (open cue question)" \
+       || bad "the_fool prints $n voice, want its cue and harmony both"; }
 
 [ $fail = 0 ] && echo "ddlm-player: all ok"
 exit $fail

@@ -41,6 +41,16 @@ for f in empty junk zero missing; do
   elif grep -q 'BLIND' "$t/cs-$f.out"; then ok "card_size: $f PDF is BLIND and refused"
   else bad "card_size refused $f but did not say BLIND: $(tail -1 "$t/cs-$f.out")"; fi
 done
+# ... and ly()'s over-full check: a LilyPond log it cannot read is BLIND,
+# not "nothing over-full". The stub lilypond removes its own log.
+sed -n '/^ly() {/,/^}/p' "$m/build.sh" >"$t/ly.sh"
+grep -q '^ly() {' "$t/ly.sh" || bad "no ly() in build.sh"
+if (work=$(mktemp -d -p "$t"); out=$(mktemp -d -p "$t"); here=$m; . "$t/ly.sh"
+    lilypond() { rm -f "$work/x.log"; : >"$work/x.pdf"; }
+    ly x /dev/null) >"$t/ly-gone.out" 2>&1; then
+  bad "ly() passed a build whose log it could not read"
+elif grep -q 'BLIND' "$t/ly-gone.out"; then ok "ly(): an unreadable LilyPond log is BLIND and refused"
+else bad "ly() refused an unreadable log but did not say BLIND: $(tail -1 "$t/ly-gone.out")"; fi
 
 if ! command -v lilypond >/dev/null; then
   echo "SKIP: no lilypond on PATH; the build is not checked"

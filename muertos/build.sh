@@ -32,10 +32,13 @@ ly() {  # ly NAME FILE: compile FILE to $out/NAME.pdf, zero errors
     echo "build.sh: $2 failed (log above)" >&2
     exit 1
   fi
-  if grep -E 'compressing over-full page|page must be compressed' "$log" >&2; then
-    echo "build.sh: $2 has a card with more than fits on it (log above)" >&2
-    exit 1
-  fi
+  local rc=0  # grep: 0 found, 1 not found, anything else could not read the log
+  grep -E 'compressing over-full page|page must be compressed' "$log" >&2 || rc=$?
+  case $rc in
+    0) echo "build.sh: $2 has a card with more than fits on it (log above)" >&2; exit 1 ;;
+    1) ;;
+    *) echo "build.sh: BLIND: cannot read LilyPond's log $log (grep rc=$rc); refusing" >&2; exit 1 ;;
+  esac
   mv "$work/$1.pdf" "$out/$1.pdf"
 }
 

@@ -7,11 +7,15 @@
 # matches.
 # The Fool's section C prints only the horn countermelody (staff 3), not
 # the melody's cue notes (#25 item 5), so its voice 2 is that.
+# santa_sangre's card is the mids part, Santa Sangre-C_Instruments_2.pdf; the
+# melody it prints below is C_Instruments.pdf (not compiled by recheck.sh).
 # Voices not listed have no 2026 counterpart: la_llorona 2 (intro
-# accompaniment), santa_sangre 2 and vis_hora 2 (accompaniment),
-# gnossienne 2 (accomp. simile). zeina allows m14 and m16: pdf2ly does not carry a
-# grace note's sharp through the measure (m14, m16 of the F part read
-# C natural where the page shows C sharp). gnossienne allows m20-23: the card
+# accompaniment), vis_hora 2 (accompaniment),
+# gnossienne 2 (accomp. simile). zeina allows card m10 and m12 (pdf m14,
+# m16: the card's intro is a \repeat volta 4 that is not unfolded, so card
+# bars run 4 behind the PDF's from m5 on): pdf2ly does not carry a grace
+# note's sharp through the measure (m14, m16 of the F part read C natural
+# where the page shows C sharp). gnossienne allows m20-23: the card
 # plays B again after C (card m20-23); the 2026 page prints A, B, C once.
 ana_dammi_falastini	Ana Dammi Falastini /Anna Dammi Falastini v3-Accompaniment_(F).pdf	1	1	-
 cairn_builder	Cairn Builder/Cairn Builder Concert.pdf	1	1	-
@@ -21,6 +25,6 @@ gnossienne	Gnossienne No 1/Gnossienne No. 1-C_Instruments.pdf	1	1	20-23
 la_llorona	La Llorona/La Llorona F.pdf	1	1	-
 love_in_outer_space	Love In Outer Space/Love in Outer Space (F).pdf	1	1	-
 love_in_outer_space	Love In Outer Space/Love in Outer Space (F).pdf	2	2	-
-santa_sangre	Santa Sangre/Santa Sangre-C_Instruments.pdf	1	1	-
+santa_sangre	Santa Sangre/Santa Sangre-C_Instruments_2.pdf	1	1	-
 vis_hora	Vi_s Hora/Vi_s Hora-C_Instruments.pdf	1	1	-
-zeina	Zeina/Zeina_v2-Accompaniment_(F).pdf	1	1	14,16
+zeina	Zeina/Zeina_v2-Accompaniment_(F).pdf	1	1	10,12

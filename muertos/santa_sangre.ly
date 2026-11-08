@@ -20,19 +20,24 @@ theme = \transpose c bes {
 	c'1 | r4
 }
 
-accompaniment = \transpose c f {
+% The mids part: "Santa Sangre-C_Instruments_2.pdf" staff 1 (2026), concert
+% pitch, as muertos/tools/pdf2ly.py reads it (m1's r4 + pickup is the
+% \partial; m17's r4 completes the repeat). muertos/recheck.sh holds the card
+% to it (recheck.tsv). The 2024 hand-entered line, a step above this one and
+% with a two-note chord in m2 and m10, is gone (#8).
+accompaniment = {
 	\repeat volta 2 {
 		\partial 2.
-		c8 f a4 8 bes |
-		<c' a>1 | r4 a8 8 4 g8 f |
-		g1 | r4 c8 d g4 8 a |
-		bes1 | r4 bes8 8 4 a8 g |
-		f1 | r4 c8 f a4 8 bes |
+		bes8 d' g'4 8 a' |
+		bes'1 | r4 g'8 8 4 f'8 es' |
+		c'1 | r4 a8 c' f'4 8 g' |
+		a'1 | r4 g'8 8 4 f'8 es' |
+		bes1 | r4 bes8 d' g'4 8 a' |
 
-		<c' a>1 | r4 a8 8 bes4 a8 c' |
-		bes1 | r4 g8 g a4 g8 f |
-		a4 f8 g a2 | r4 g8 f g4 bes4 |
-		a1 | r4
+		bes'1 | r4 g'8 8 a'4 g'8 bes' |
+		a'2 es' | r4 es'8 f' g'4 f'8 es' |
+		g'4 bes8 c' d'2 | r4 c'8 d' es'4 8 f' |
+		d'1 | r4
 	}
 }
 
